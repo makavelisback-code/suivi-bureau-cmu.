@@ -186,10 +186,10 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
 const DEFAULT_PRESTATIONS=[...new Set([
   "Consultation générale","Analyses médicales","Soins dentaires","Optique","Bulletin d'exploration ophtalmologique","Maternité",
   "Diabétologie","Urologie","Pédiatrie","Chirurgie pédiatrique","Orthopédie","Pneumologie","Odontologie",
-  "Bulletin d'examen radio","Cardiologie","Bulletin d'exploration cardiaque","Kinésithérapie","Psychiatrie","SAU","Gastro-entérologie","Néphrologie",
+  "Bulletin d'examen radio","Cardiologie","Bulletin d'exploration cardiaque","Gynécologie","Kinésithérapie","Neurologie","ORL","Psychiatrie","SAU","Gastro-entérologie","Néphrologie",
   "Rhumatologie","Chirurgie générale","Médecine","Autre"
 ])].sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"}));
-const REQUIRED_PRESTATIONS=["Kinésithérapie","Bulletin d'exploration cardiaque","Bulletin d'exploration ophtalmologique"];
+const REQUIRED_PRESTATIONS=["Kinésithérapie","Bulletin d'exploration cardiaque","Bulletin d'exploration ophtalmologique","Gynécologie","Neurologie","ORL"];
 const PRESTATION_SUBGROUPS={
   "Cardiologie":["Bulletin d'exploration cardiaque"],
   "Optique":["Bulletin d'exploration ophtalmologique"]
@@ -324,19 +324,28 @@ function monthKey(date){const d=new Date(date);return d.getFullYear()+"-"+String
 function normNumero(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function normPhone(v){return String(v||"").replace(/\D/g,"")}
 function normPerson(v){return String(v||"").trim().toLowerCase().replace(/\s+/g," ")}
-function findAdherentByIdentity({numero="",prenom="",nom="",telephone=""}={}){
+function registrationDistance(a,b){
+  a=normNumero(a);b=normNumero(b);
+  const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+  const prev=Array.from({length:n+1},(_,j)=>j),cur=new Array(n+1);
+  for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));for(let j=0;j<=n;j++)prev[j]=cur[j]}
+  return prev[n]
+}
+function closeRegistrations(numero,excludeId=null){
+  const num=normNumero(numero);if(!num)return[];
+  return adherents.map(a=>({a,d:registrationDistance(num,a.numero)}))
+    .filter(x=>x.a.id!==excludeId&&normNumero(x.a.numero)&&x.d>=1&&x.d<=2)
+    .sort((x,y)=>x.d-y.d);
+}
+function confirmCloseRegistration(numero,prenom,nom,excludeId=null){
+  const hits=closeRegistrations(numero,excludeId);if(!hits.length)return true;
+  const lines=hits.slice(0,3).map(x=>"• "+name(x.a)+" — "+(x.a.numero||"Sans immatriculation")+" ("+x.d+" caractère"+(x.d>1?"s":"")+" de différence)").join("\n");
+  return confirm("⚠️ IMMATRICULATION TRÈS PROCHE DÉTECTÉE\n\nNuméro saisi : "+numero+"\nPatient : "+[prenom,nom].filter(Boolean).join(" ")+"\n\nDossier(s) proche(s) :\n"+lines+"\n\nVérifiez la carte avant de continuer.\n\nANNULER = revenir corriger le numéro.\nOK = confirmer qu'il s'agit bien d'un autre numéro/patient.")
+}
+function findAdherentByIdentity({numero=""}={}){
   const num=normNumero(numero);
-  if(num)return adherents.find(x=>normNumero(x.numero)===num)||null;
-  const pre=normPerson(prenom),last=normPerson(nom),tel=normPhone(telephone);
-  if(pre&&last&&tel){
-    const exact=adherents.filter(x=>normPerson(x.prenom)===pre&&normPerson(x.nom)===last&&normPhone(x.telephone)===tel);
-    if(exact.length===1)return exact[0];
-  }
-  if(pre&&last){
-    const withoutNumber=adherents.filter(x=>!normNumero(x.numero)&&normPerson(x.prenom)===pre&&normPerson(x.nom)===last);
-    if(withoutNumber.length===1)return withoutNumber[0];
-  }
-  return null;
+  if(!num)return null;
+  return adherents.find(x=>normNumero(x.numero)===num)||null;
 }
 function getCurrentAdherent(){return findAdherentByIdentity({numero:f("f-numero"),prenom:f("f-prenom"),nom:f("f-nom"),telephone:f("f-telephone")})}
 function monthlyPassagesFor(a){if(!a)return[];const key=monthKey(new Date());return passages.filter(p=>p.adherentId===a.id&&monthKey(p.date)===key)}
@@ -351,8 +360,12 @@ function savePassage(){
   if(!gender||!insuranceType){show("err-profil");toast("Choix non validé : F/M et type d’assuré requis","error");return}
   if(category==="pharmacie"&&!prescriber){toast("Bon pharmacie incomplet : renseignez le prescripteur","error");return}
   if(category==="pharmacie"&&!pharmacyCircuit){toast("Bon pharmacie incomplet : choisissez circuit public ou officine","error");return}
-  let a=findAdherentByIdentity({numero,prenom,nom,telephone});
-  if(!a){a={id:Date.now().toString(36),prenom,nom,numero,telephone,gender,insuranceType};adherents.push(a)}else{Object.assign(a,{prenom:prenom||a.prenom,nom:nom||a.nom,numero:numero||a.numero,telephone:telephone||a.telephone,gender:gender||a.gender,insuranceType:insuranceType||a.insuranceType})}
+  let a=findAdherentByIdentity({numero});
+  if(!a){
+    if(!numero){toast("N° d’immatriculation requis pour identifier un nouveau patient","error");return}
+    if(!confirmCloseRegistration(numero,prenom,nom)){document.getElementById("f-numero").focus();return}
+    a={id:Date.now().toString(36),prenom,nom,numero,telephone,gender,insuranceType};adherents.push(a)
+  }else{Object.assign(a,{prenom:prenom||a.prenom,nom:nom||a.nom,telephone:telephone||a.telephone,gender:gender||a.gender,insuranceType:insuranceType||a.insuranceType})}
   const prior=monthlyPassagesFor(a),same=prior.filter(p=>p.category===category);
   if(same.length){const last=same[same.length-1];const type=category==="pharmacie"?"la pharmacie":"les prestations";if(!confirm(`ATTENTION : ${name(a)} est déjà passé(e) pour ${type} ce mois-ci, le ${formatDate(last.date)}.\n\nRègle du bureau : 1 passage prestations et 1 passage pharmacie par mois.\n\nVoulez-vous enregistrer malgré tout ce nouveau passage ?`)){updateMonthlyStatus();return}}
   const currentPhoto=document.getElementById("passage-photo-box").dataset.photo||"";if(currentPhoto)a.photo=currentPhoto;
@@ -811,8 +824,10 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
   const ni=document.getElementById("new-insurance-classique").dataset.selected?"Classique":document.getElementById("new-insurance-sesame").dataset.selected?"Plan Sésame":"";
   if(!ng||!ni){show("err-new-profile");toast((editingAdherentId?"Mise à jour impossible":"Ajout impossible")+" : F/M et type d’assuré requis","error");return}
   const enteredNumero=f("new-numero");
-  const sameNumero=normNumero(enteredNumero)?adherents.find(x=>normNumero(x.numero)===normNumero(enteredNumero)&&x.id!==editingAdherentId):null;
+  if(!enteredNumero){toast("N° d’immatriculation requis pour identifier le patient","error");document.getElementById("new-numero").focus();return}
+  const sameNumero=adherents.find(x=>normNumero(x.numero)===normNumero(enteredNumero)&&x.id!==editingAdherentId);
   if(sameNumero){toast("Ce numéro d’immatriculation appartient déjà à "+name(sameNumero)+". Vérifiez le dossier.","error");return}
+  if(!confirmCloseRegistration(enteredNumero,p,n,editingAdherentId)){document.getElementById("new-numero").focus();return}
   const photo=document.getElementById("new-photo-box").dataset.photo||"";
   if(editingAdherentId){
     const a=adherents.find(x=>x.id===editingAdherentId);if(!a)return;
