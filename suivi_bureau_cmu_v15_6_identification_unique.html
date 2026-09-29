@@ -682,42 +682,35 @@ document.getElementById("btn-lg-apply").onclick=()=>{
   const file=e.target.files[0];if(file)await runDocumentOCR(file);e.target.value="";
 }));
 
-let cardOcrWorker=null,cardOcrWorkerPromise=null;
-async function getCardOcrWorker(statusEl){
-  if(cardOcrWorker)return cardOcrWorker;
-  if(cardOcrWorkerPromise)return cardOcrWorkerPromise;
-  cardOcrWorkerPromise=(async()=>{
-    statusEl.textContent="Initialisation rapide de la lecture…";
-    // Tesseract.js 4.1.1 : initialisation compatible avec les navigateurs mobiles.
-    const worker=Tesseract.createWorker({logger:m=>{if(m.status==="recognizing text")statusEl.textContent="Lecture de la carte : "+Math.round(m.progress*100)+" %"}});
-    await worker.load();
-    await worker.loadLanguage("fra");
-    await worker.initialize("fra");
-    cardOcrWorker=worker;return worker;
-  })();
-  try{return await cardOcrWorkerPromise}catch(e){cardOcrWorker=null;throw e}finally{cardOcrWorkerPromise=null}
-}
 async function runCardOCR(file,statusEl,onResult){
   if(!file)return;
   statusEl.textContent="Optimisation de la photo…";
   try{
+    if(typeof Tesseract==="undefined")throw new Error("Tesseract indisponible");
     const image=await preprocessCardFast(file);
-    const worker=await getCardOcrWorker(statusEl);
-    await worker.setParameters({tessedit_pageseg_mode:"6",preserve_interword_spaces:"1"});
-    const r=await worker.recognize(image);
-    let results=[r.data.text||""],best=parseCardFields(results[0]);
-    // Un second passage n'est lancé que si la première lecture n'a pas trouvé
-    // l'identité essentielle. Cela évite les 9 OCR successifs de l'ancienne version.
+    let results=[];
+    // Chemin volontairement compatible avec Tesseract.js 4.1.1.
+    // Une seule reconnaissance par défaut, contrairement aux 9 lectures historiques.
+    const r=await Tesseract.recognize(image,"fra",{
+      logger:m=>{if(m.status==="recognizing text")statusEl.textContent="Lecture de la carte : "+Math.round(m.progress*100)+" %"},
+      config:{tessedit_pageseg_mode:"6",preserve_interword_spaces:"1"}
+    });
+    results.push(r.data.text||"");
+    let best=parseCardFields(results[0]);
+    // Deuxième lecture uniquement si l'identité essentielle manque.
     if(!(best.numero&&(best.nom||best.prenom))){
       statusEl.textContent="Vérification de la lecture…";
-      await worker.setParameters({tessedit_pageseg_mode:"11",preserve_interword_spaces:"1"});
-      const r2=await worker.recognize(image);results.push(r2.data.text||"");
-      const candidates=results.map(parseCardFields).sort((a,b)=>scoreFields(b)-scoreFields(a));
+      const r2=await Tesseract.recognize(image,"fra",{
+        logger:m=>{if(m.status==="recognizing text")statusEl.textContent="Vérification : "+Math.round(m.progress*100)+" %"},
+        config:{tessedit_pageseg_mode:"11",preserve_interword_spaces:"1"}
+      });
+      results.push(r2.data.text||"");
+      const candidates=results.map(parseCardFields).sort((x,y)=>scoreFields(y)-scoreFields(x));
       best=candidates[0]||best;
     }
     onResult(best,results);
     statusEl.textContent=(best.nom||best.prenom||best.numero)?"✓ Carte lue. Vérifiez les informations.":"Carte non reconnue. Rapprochez et cadrez bien la carte.";
-  }catch(e){console.error(e);statusEl.textContent="Lecture automatique indisponible. Saisissez les informations manuellement.";}
+  }catch(e){console.error("OCR carte",e);statusEl.textContent="Lecture automatique indisponible. Vérifiez la connexion puis réessayez.";toast("OCR indisponible : réessayez après actualisation","error");}
 }
 function scoreFields(x){return (x.nom?4:0)+(x.prenom?4:0)+(x.numero?5:0)+(x.date?1:0)}
 function preprocessCardFast(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const max=1500,scale=Math.min(1,max/Math.max(img.width,img.height));const w=Math.round(img.width*scale),h=Math.round(img.height*scale);const c=document.createElement("canvas");c.width=w;c.height=h;const ctx=c.getContext("2d",{willReadFrequently:true});ctx.drawImage(img,0,0,w,h);const data=ctx.getImageData(0,0,w,h),d=data.data;for(let i=0;i<d.length;i+=4){let g=.299*d[i]+.587*d[i+1]+.114*d[i+2];g=Math.max(0,Math.min(255,(g-128)*1.45+128));d[i]=d[i+1]=d[i+2]=g}ctx.putImageData(data,0,0);resolve(c.toDataURL("image/jpeg",.86))};img.onerror=reject;img.src=e.target.result};r.onerror=reject;r.readAsDataURL(file)})}
