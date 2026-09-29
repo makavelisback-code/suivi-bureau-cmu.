@@ -688,10 +688,14 @@ async function getCardOcrWorker(statusEl){
   if(cardOcrWorkerPromise)return cardOcrWorkerPromise;
   cardOcrWorkerPromise=(async()=>{
     statusEl.textContent="Initialisation rapide de la lecture…";
-    const worker=await Tesseract.createWorker("fra",1,{logger:m=>{if(m.status==="recognizing text")statusEl.textContent="Lecture de la carte : "+Math.round(m.progress*100)+" %"}});
+    // Tesseract.js 4.1.1 : initialisation compatible avec les navigateurs mobiles.
+    const worker=Tesseract.createWorker({logger:m=>{if(m.status==="recognizing text")statusEl.textContent="Lecture de la carte : "+Math.round(m.progress*100)+" %"}});
+    await worker.load();
+    await worker.loadLanguage("fra");
+    await worker.initialize("fra");
     cardOcrWorker=worker;return worker;
   })();
-  try{return await cardOcrWorkerPromise}finally{cardOcrWorkerPromise=null}
+  try{return await cardOcrWorkerPromise}catch(e){cardOcrWorker=null;throw e}finally{cardOcrWorkerPromise=null}
 }
 async function runCardOCR(file,statusEl,onResult){
   if(!file)return;
