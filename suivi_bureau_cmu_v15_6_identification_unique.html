@@ -939,10 +939,25 @@ function deletePassage(id){
   passages=passages.filter(x=>x.id!==id);
   save();render();toast("✓ Passage supprimé");
 }
+function editPassage(id){
+ const p=passages.find(x=>String(x.id)===String(id));if(!p)return;
+ const a=adherents.find(x=>x.id===p.adherentId)||{};
+ const oldDate=p.date;
+ const input=prompt("Modifier le bulletin de passage de "+name(a)+"\\n\\nDate et heure (AAAA-MM-JJTHH:MM) :",new Date(p.date).toISOString().slice(0,16));
+ if(input===null)return;
+ const parsed=new Date(input);
+ if(!input.trim()||Number.isNaN(parsed.getTime())){toast("Date ou heure invalide","error");return}
+ const detail=prompt("Prestations (séparées par une virgule), ou prescripteur si pharmacie :",p.category==="pharmacie"?(p.prescriber||""):(p.prestations||[]).join(", "));
+ if(detail===null)return;
+ if(p.category==="pharmacie"){if(!detail.trim()){toast("Prescripteur requis","error");return}p.prescriber=detail.trim()}
+ else p.prestations=detail.split(",").map(x=>x.trim()).filter(Boolean);
+ p.date=parsed.toISOString();
+ save();render();toast("✓ Bulletin modifié sans nouveau passage");
+}
 function renderToday(){
   let d=today(),ps=passages.filter(p=>p.date.slice(0,10)===d),box=document.getElementById("today-list");
-  box.innerHTML=ps.length?ps.slice().reverse().map(p=>{let a=adherents.find(x=>x.id===p.adherentId)||{};let detail;if(p.category==="pharmacie"){detail=`Pharmacie${p.pharmacy&&p.pharmacy.circuit?" · "+(p.pharmacy.circuit==="public"?"Public 80%":"Officine 50%"):""}${p.prescriber?" · Prescripteur : "+esc(p.prescriber):""}`}else{const d=passageSoinsLabel(p);detail=esc(d.main)+(d.acts.length?`<br><span class="meta">Actes complémentaires : ${d.acts.map(esc).join(" · ")}</span>`:"")}return `<div class="list-row passage-row" data-passage-id="${p.id}"><div class="left"><p><b>${esc(name(a))}</b></p><p class="meta">${detail} · ${new Date(p.date).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</p></div></div>`}).join(""):'<p class="empty">Aucun passage enregistré aujourd’hui.</p>';
-  box.querySelectorAll(".passage-row").forEach(row=>{const id=row.dataset.passageId;addLongPress(row,()=>deletePassage(id),()=>{});});
+  box.innerHTML=ps.length?ps.slice().reverse().map(p=>{let a=adherents.find(x=>x.id===p.adherentId)||{};let detail;if(p.category==="pharmacie"){detail=`Pharmacie${p.pharmacy&&p.pharmacy.circuit?" · "+(p.pharmacy.circuit==="public"?"Public 80%":"Officine 50%"):""}${p.prescriber?" · Prescripteur : "+esc(p.prescriber):""}`}else{const d=passageSoinsLabel(p);detail=esc(d.main)+(d.acts.length?`<br><span class="meta">Actes complémentaires : ${d.acts.map(esc).join(" · ")}</span>`:"")}return `<div class="list-row passage-row" data-passage-id="${p.id}"><div class="left"><p><b>${esc(name(a))}</b></p><p class="meta">${detail} · ${new Date(p.date).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</p></div><button type="button" class="btn-secondary edit-passage-btn" data-edit-id="${esc(String(p.id))}" style="width:auto;padding:8px 12px;flex-shrink:0">Modifier</button></div>`}).join(""):'<p class="empty">Aucun passage enregistré aujourd’hui.</p>';
+  box.querySelectorAll(".edit-passage-btn").forEach(btn=>btn.onclick=e=>{e.stopPropagation();editPassage(btn.dataset.editId)});box.querySelectorAll(".passage-row").forEach(row=>{const id=row.dataset.passageId;addLongPress(row,()=>deletePassage(id),()=>{});});
 }
 function uniqueCount(ps){return new Set(ps.map(p=>p.adherentId)).size}
 function startOfWeek(d){const x=new Date(d);const day=x.getDay()||7;x.setHours(0,0,0,0);x.setDate(x.getDate()-day+1);return x}
