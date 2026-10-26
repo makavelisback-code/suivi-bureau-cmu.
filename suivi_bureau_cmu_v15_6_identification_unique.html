@@ -237,8 +237,10 @@ function sanitizePassages(){
 function save(){
   sanitizePassages();
   safeLocalJSON("cmu_adherents",adherents,lightAdherents);
-  safeLocalJSON("cmu_passages",passages);
+  const passagesSaved=safeLocalJSON("cmu_passages",passages);
+  if(!passagesSaved){toast("⚠️ Sauvegarde des passages impossible : espace de stockage insuffisant. Ne fermez pas cette page.","error");return false}
   safeLocalJSON("cmu_accounts",accounts);
+  return true;
 }
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function name(a){return [a.prenom,a.nom].filter(Boolean).join(" ")||"Sans nom"} function initials(a){return ((a.prenom||"")[0]+(a.nom||"")[0]).toUpperCase()||"?"}
@@ -377,7 +379,7 @@ function savePassage(){
     const meds=getMedications(),total=meds.reduce((z,x)=>z+x.quantite*x.prixUnitaire,0),rate=insuranceType==="CEC"?cecRate/100:pharmacyCircuit==="public"?.8:.5;
     pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:f("bon-pharmacie"),structureSante:f("bon-structure"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
   }
-  passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});save();
+  passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});if(!save()){toast("⚠️ Passage non sauvegardé. Libérez de l’espace sans effacer les données du site.","error");return}
   ["f-prenom","f-nom","f-numero","f-telephone","f-prescriber"].forEach(x=>document.getElementById(x).value="");selected.clear();complementarySelected.clear();gender=null;insuranceType=null;document.getElementById("cec-rate").value="";document.getElementById("cec-rate-box").style.display="none";document.querySelectorAll("#gender-f,#gender-m").forEach(x=>x.classList.remove("active-soins","active-pharma"));document.querySelectorAll("#insurance-classique,#insurance-sesame,#insurance-cec").forEach(x=>x.classList.remove("active-insurance"));document.querySelectorAll(".cb-chip").forEach(x=>x.classList.remove("selected"));resetPharmaForm();selectCat(null);document.getElementById("passage-photo-box").textContent="Aucune photo";document.getElementById("passage-photo-box").dataset.photo="";document.getElementById("ocr-status").textContent="";document.getElementById("cmu-doc-status").textContent="";document.getElementById("cmu-doc-result").classList.remove("show");document.getElementById("cmu-doc-result").innerHTML="";document.getElementById("guarantee-doc-form")?.classList.remove("show");document.getElementById("bon-doc-form")?.classList.remove("show");document.getElementById("monthly-status").style.display="none";toast("✓ Passage enregistré avec succès");render()
 }
 
