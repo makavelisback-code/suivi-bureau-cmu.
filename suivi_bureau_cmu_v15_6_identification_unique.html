@@ -1256,12 +1256,23 @@ async function cloudPush(forceAll=false){
  }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");cloudState(duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e),12000);}
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
+async function fetchAllCloudRows(table){
+ const rows=[],pageSize=500;
+ for(let offset=0;;offset+=pageSize){
+  const result=await cloud.from(table).select("*").order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
+  if(result.error)throw result.error;
+  const batch=result.data||[];
+  rows.push(...batch);
+  if(batch.length<pageSize)break;
+ }
+ return rows;
+}
 async function cloudPull(){
  if(cloudBusy){cloudPullQueued=true;return} cloudBusy=true;
  try{
   const old=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
-  const [ra,rp]=await Promise.all([cloud.from("adherents").select("*").order("created_at"),cloud.from("passages").select("*").order("created_at")]);
-  if(ra.error)throw ra.error;if(rp.error)throw rp.error;
+  const [allAdherents,allPassages]=await Promise.all([fetchAllCloudRows("adherents"),fetchAllCloudRows("passages")]);
+  const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
   const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
   const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?d:null,prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
