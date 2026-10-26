@@ -1265,8 +1265,10 @@ async function cloudPull(){
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
   const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
   const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?d:null,prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
-  // V15: never erase a local record merely because a realtime pull arrived before its upload confirmation.
-  adherents=mergeById(remoteA,old.a,pa);passages=mergeById(remoteP,old.p,pp);
+  // Protect local entries during a delayed cloud response. Re-check pending IDs after network awaits.
+  const freshA=pendingSet(PENDING_A_KEY),freshP=pendingSet(PENDING_P_KEY);
+  const current=localSnapshot();
+  adherents=mergeById(remoteA,current.a,freshA);passages=mergeById(remoteP,current.p,freshP);
   safeLocalJSON("cmu_adherents",adherents,lightAdherents);safeLocalJSON("cmu_passages",passages);render();cloudState("Données reçues ✓");
  }catch(e){cloudState(cloudErrorText("Erreur réception Supabase",e)+" — données locales conservées",15000)}
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
@@ -1278,7 +1280,7 @@ async function cloudStart(session){
  const count=countRes.count;const s=localSnapshot();if((count||0)===0&&(s.a.length||s.p.length))await cloudPush(true);else await cloudPull();
  if(!cloudSubscribed){cloudSubscribed=true;cloud.channel("cmu-live").on("postgres_changes",{event:"*",schema:"public",table:"adherents"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).on("postgres_changes",{event:"*",schema:"public",table:"passages"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).subscribe()}
 }
-const localSave=save; save=function(){const before=localSnapshot();localSave();const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100)};
+const localSave=save; save=function(){const before=localSnapshot();const ok=localSave();if(ok===false)return false;const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100);return true};
 const localDeleteAdherent=deleteAdherent;
 deleteAdherent=async function(id){
  const a=adherents.find(x=>String(x.id)===String(id));if(!a)return;const linkedPassages=passages.filter(p=>String(p.adherentId)===String(id));const linked=linkedPassages.length;
