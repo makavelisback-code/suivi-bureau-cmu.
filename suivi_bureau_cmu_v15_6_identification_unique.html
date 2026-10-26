@@ -243,7 +243,8 @@ function save(){
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function name(a){return [a.prenom,a.nom].filter(Boolean).join(" ")||"Sans nom"} function initials(a){return ((a.prenom||"")[0]+(a.nom||"")[0]).toUpperCase()||"?"}
 function toast(x,type="success"){let t=document.getElementById("toast");t.textContent=x;t.classList.remove("success","error");t.classList.add("show",type);clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show","success","error"),2200)}
-function today(){return new Date().toISOString().slice(0,10)}
+function today(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
+function passageLocalDay(p){const d=new Date(p.date);if(Number.isNaN(d.getTime()))return String(p.date||"").slice(0,10);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
 function persistPhoto(file,box){let r=new FileReader();r.onload=e=>{box.innerHTML="<img src='"+e.target.result+"'>";box.dataset.photo=e.target.result};r.readAsDataURL(file)}
 function addLongPress(el,onLong,onTap){
   let timer=null,longDone=false,startX=0,startY=0;
@@ -955,7 +956,7 @@ function editPassage(id){
  save();render();toast("✓ Bulletin modifié sans nouveau passage");
 }
 function renderToday(){
-  let d=today(),ps=passages.filter(p=>p.date.slice(0,10)===d),box=document.getElementById("today-list");
+  let d=today(),ps=passages.filter(p=>passageLocalDay(p)===d),box=document.getElementById("today-list");
   box.innerHTML=ps.length?ps.slice().reverse().map(p=>{let a=adherents.find(x=>x.id===p.adherentId)||{};let detail;if(p.category==="pharmacie"){detail=`Pharmacie${p.pharmacy&&p.pharmacy.circuit?" · "+(p.pharmacy.circuit==="public"?"Public 80%":"Officine 50%"):""}${p.prescriber?" · Prescripteur : "+esc(p.prescriber):""}`}else{const d=passageSoinsLabel(p);detail=esc(d.main)+(d.acts.length?`<br><span class="meta">Actes complémentaires : ${d.acts.map(esc).join(" · ")}</span>`:"")}return `<div class="list-row passage-row" data-passage-id="${p.id}"><div class="left"><p><b>${esc(name(a))}</b></p><p class="meta">${detail} · ${new Date(p.date).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</p></div><button type="button" class="btn-secondary edit-passage-btn" data-edit-id="${esc(String(p.id))}" style="width:auto;padding:8px 12px;flex-shrink:0">Modifier</button></div>`}).join(""):'<p class="empty">Aucun passage enregistré aujourd’hui.</p>';
   box.querySelectorAll(".edit-passage-btn").forEach(btn=>btn.onclick=e=>{e.stopPropagation();editPassage(btn.dataset.editId)});box.querySelectorAll(".passage-row").forEach(row=>{const id=row.dataset.passageId;addLongPress(row,()=>deletePassage(id),()=>{});});
 }
