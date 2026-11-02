@@ -1112,6 +1112,20 @@ function currentStatsPeriodLabel(){
   }
   return names[statPeriod]||"Période sélectionnée";
 }
+function exportStatsPDFText(){
+ const lib=window.jspdf;if(!lib||!lib.jsPDF)throw new Error("Bibliothèque PDF non chargée");
+ const pdf=new lib.jsPDF("p","mm","a4");
+ const label=currentStatsPeriodLabel(),sec=document.getElementById("sec-stats");
+ let y=17;const margin=14,width=182;
+ function line(t,bold=false){pdf.setFont("helvetica",bold?"bold":"normal");pdf.setFontSize(bold?12:9);const lines=pdf.splitTextToSize(String(t||"").replace(/[^\\x20-\\x7E\\xA0-\\xFF]/g," "),width);for(const l of lines){if(y>278){pdf.addPage();y=16}pdf.text(l,margin,y);y+=bold?6:4.6}}
+ line("Suivi Bureau CMU - Rapport statistique",true);line("Periode : "+label,true);line("Genere le "+new Date().toLocaleString("fr-FR"));y+=5;
+ const clone=sec.cloneNode(true);clone.querySelectorAll("[data-html2canvas-ignore='true'],button,input,select,.chart-switch,svg,canvas").forEach(e=>e.remove());
+ clone.querySelectorAll("script,style").forEach(e=>e.remove());
+ const blocks=clone.querySelectorAll(".card");
+ blocks.forEach((card,i)=>{const raw=(card.innerText||card.textContent||"").replace(/\\s+/g," ").trim();if(raw){line("Section "+(i+1),true);line(raw);y+=3}});
+ const file="statistiques_CMU_"+label.replace(/[^a-z0-9]+/gi,"_")+".pdf";
+ pdf.save(file);
+}
 async function exportStatsPDF(){
   const btn=document.getElementById("btn-export-stats-pdf"),status=document.getElementById("export-pdf-status");
   btn.disabled=true;btn.textContent="Création du PDF…";status.textContent="Préparation des statistiques et graphiques…";
@@ -1132,7 +1146,8 @@ async function exportStatsPDF(){
     clone.querySelectorAll(".chart-switch").forEach(x=>x.remove());
     wrap.appendChild(clone);
     document.body.appendChild(wrap);
-    const canvas=await html2canvas(wrap,{scale:1.5,backgroundColor:"#FAFAF8",useCORS:true,logging:false});
+    if(!window.html2canvas||!window.jspdf)throw new Error("Bibliothèque PDF indisponible");
+    const canvas=await html2canvas(wrap,{scale:1,backgroundColor:"#FAFAF8",useCORS:true,logging:false});
     document.body.removeChild(wrap);
 
     const {jsPDF}=window.jspdf;
@@ -1155,8 +1170,8 @@ async function exportStatsPDF(){
     status.textContent="✓ PDF généré avec les indicateurs, diagrammes et courbes.";
     toast("✓ Rapport statistique PDF généré");
   }catch(e){
-    console.error(e);status.textContent="Export PDF impossible sur ce navigateur. Réessayez avec une connexion Internet active.";
-    toast("Export PDF impossible","error");
+    console.error("Export graphique PDF",e);
+    try{exportStatsPDFText();status.textContent="✓ PDF statistique généré en version texte (compatible mobile).";toast("✓ PDF généré en version allégée")}catch(err){console.error(err);status.textContent="Export impossible : "+(err.message||"erreur inconnue");toast("Export PDF impossible","error")};
   }finally{
     btn.disabled=false;btn.textContent="Exporter les statistiques en PDF";
   }
