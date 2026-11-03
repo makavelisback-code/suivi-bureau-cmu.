@@ -202,7 +202,7 @@ REQUIRED_PRESTATIONS.forEach(x=>{if(!PRESTATIONS.includes(x))PRESTATIONS.push(x)
 PRESTATIONS=[...new Set(PRESTATIONS)].sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"}));
 function savePrestations(){localStorage.setItem("cmu_prestations",JSON.stringify(PRESTATIONS));}
 const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-let adherents=JSON.parse(localStorage.getItem("cmu_adherents")||"[]"), passages=JSON.parse(localStorage.getItem("cmu_passages")||"[]"), accounts=JSON.parse(localStorage.getItem("cmu_accounts")||"null")||[{id:"admin",pass:"1234",name:"Admin"}], currentAgent=sessionStorage.getItem("cmu_agent"), category=null, gender=null, insuranceType=null, selected=new Set(), complementarySelected=new Set(), statMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), statPeriod="month";
+let adherents=JSON.parse(localStorage.getItem("cmu_adherents")||"[]"), passages=JSON.parse(localStorage.getItem("cmu_passages")||"[]"), accounts=JSON.parse(localStorage.getItem("cmu_accounts")||"null")||[{id:"admin",pass:"1234",name:"Admin"}], currentAgent=sessionStorage.getItem("cmu_agent"), category=null, gender=null, insuranceType=null, selected=new Set(), complementarySelected=new Set(), statMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), statPeriod="month", prestationChartType="bars";
 
 // V15.3 — cache local léger et tolérant à la saturation.
 // Supabase reste la source principale; une erreur de cache ne doit jamais interrompre la synchronisation.
