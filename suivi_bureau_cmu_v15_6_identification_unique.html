@@ -832,13 +832,36 @@ function resetAdherentDialog(){
   hide("err-new-nom");hide("err-new-profile");
 }
 function correctIdentityFromPassage(){
- const numero=f("f-numero");
- if(!numero){toast("Renseignez le numéro d’immatriculation du patient","error");document.getElementById("f-numero").focus();return}
- const a=adherents.find(x=>normNumero(x.numero)===normNumero(numero));
- if(!a){toast("Patient introuvable : recherchez son dossier dans Adhérents","error");return}
- editAdherent(a.id);
+ try{
+  const numero=f("f-numero");
+  let a=adherents.find(x=>normNumero(x.numero)===normNumero(numero));
+  if(!a){
+   const entered=prompt("Numéro d’immatriculation actuel du patient à corriger :",numero||"");
+   if(entered===null)return;
+   a=adherents.find(x=>normNumero(x.numero)===normNumero(entered));
+  }
+  if(!a){alert("Dossier introuvable. Vérifiez le numéro actuel dans l’onglet Adhérents.");return}
+  const prenom=prompt("Corriger le prénom (sans créer de passage) :",a.prenom||"");
+  if(prenom===null)return;
+  const nom=prompt("Corriger le nom :",a.nom||"");
+  if(nom===null)return;
+  const matricule=prompt("Corriger le numéro d’immatriculation :",a.numero||"");
+  if(matricule===null)return;
+  if(!prenom.trim()||!nom.trim()||!matricule.trim()){alert("Prénom, nom et immatriculation sont obligatoires. Aucune modification effectuée.");return}
+  const duplicate=adherents.find(x=>x.id!==a.id&&normNumero(x.numero)===normNumero(matricule));
+  if(duplicate){alert("Ce matricule appartient déjà à un autre dossier. Aucune modification effectuée.");return}
+  if(!confirm("Confirmer les corrections de "+name(a)+" ? Aucun nouveau passage ne sera créé."))return;
+  const previous={prenom:a.prenom,nom:a.nom,numero:a.numero};
+  Object.assign(a,{prenom:prenom.trim(),nom:nom.trim(),numero:matricule.trim()});
+  if(save()===false){Object.assign(a,previous);alert("La sauvegarde locale a échoué. Corrections non confirmées.");return}
+  document.getElementById("f-prenom").value=a.prenom;
+  document.getElementById("f-nom").value=a.nom;
+  document.getElementById("f-numero").value=a.numero;
+  render();
+  alert("Corrections enregistrées. Aucun nouveau passage créé.");
+ }catch(err){console.error("Correction identité",err);alert("Impossible de corriger le dossier : "+(err.message||err))}
 }
-document.getElementById("btn-correct-identity-passage").onclick=correctIdentityFromPassage;
+document.getElementById("btn-correct-identity-passage").addEventListener("click",correctIdentityFromPassage);
 function editAdherent(id){
   const a=adherents.find(x=>x.id===id);if(!a)return;
   editingAdherentId=id;
