@@ -1229,7 +1229,7 @@ function canonicalPharmacy(s){
 }
 function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacyName||p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||"")}
 function refreshPharmacyDirectories(){
- const pharmacies=new Map(CMU_PHARMACIES.map(x=>[pharmacyKey(x),x]));
+ const pharmacies=new Map((activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?[]:CMU_PHARMACIES).map(x=>[pharmacyKey(x),x]));
  const prescribers=new Map();
  passages.forEach(p=>{
   const pharmacy=passagePharmacyName(p);
@@ -1244,7 +1244,7 @@ function refreshPharmacyDirectories(){
  const drList=document.getElementById("cmu-prescribers-list");
  drList.replaceChildren(...[...prescribers.values()].sort((a,b)=>a.localeCompare(b,"fr")).map(v=>{const o=document.createElement("option");o.value=v;return o}));
  const quick=document.getElementById("pharmacy-quick-picks");
- quick.replaceChildren(...CMU_PHARMACIES.map(v=>{const b=document.createElement("button");b.type="button";b.className="btn-small";b.textContent=v;b.onclick=()=>{document.getElementById("bon-pharmacie").value=v};return b}));
+ quick.replaceChildren(...(activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?[]:CMU_PHARMACIES).map(v=>{const b=document.createElement("button");b.type="button";b.className="btn-small";b.textContent=v;b.onclick=()=>{document.getElementById("bon-pharmacie").value=v};return b}));
 }
 function renderPharmacyShares(ps){
  const box=document.getElementById("pharmacy-shares");if(!box)return;
@@ -1504,7 +1504,7 @@ setTimeout(()=>{try{initCmuSuggestions()}catch(e){console.warn("Suggestions CMU 
 const CMU_SUPABASE_URL="https://kboseofjxxioqvqdqdqf.supabase.co";
 const CMU_SUPABASE_KEY="sb_publishable_1cgBKnGkqfCqkll2Y_aEeg__oNdfo-X";
 const cloud=supabase.createClient(CMU_SUPABASE_URL,CMU_SUPABASE_KEY);
-let cloudBusy=false,cloudSubscribed=false,cloudPushQueued=false,cloudPullQueued=false;
+let cloudBusy=false,cloudSubscribed=false,cloudPushQueued=false,cloudPullQueued=false,activeEstablishmentId=null;
 const PENDING_A_KEY="cmu_pending_adherents_v15",PENDING_P_KEY="cmu_pending_passages_v15";
 const cloudMsg=x=>document.getElementById("cloud-msg").textContent=x;
 function cloudState(x,ms=3500){const e=document.getElementById("cloud-state");e.textContent=x;e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",ms)}
@@ -1536,14 +1536,14 @@ async function cloudPush(forceAll=false){
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const adherentsToPush=forceAll?s.a:s.a.filter(x=>pa.has(String(x.id)));
   if(adherentsToPush.length){
-   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id}));
+   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
    const r=await cloud.from("adherents").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  const ar=await cloud.from("adherents").select("id,legacy_id"); if(ar.error)throw ar.error;
+  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",activeEstablishmentId); if(ar.error)throw ar.error;
   const ids=new Map(ar.data.map(x=>[String(x.legacy_id),x.id]));
   const passagesToPush=(forceAll?s.p:s.p.filter(x=>pp.has(String(x.id)))).filter(x=>ids.has(String(x.adherentId)));
   if(passagesToPush.length){
-   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,created_at:x.date||new Date().toISOString()}));
+   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:activeEstablishmentId,created_at:x.date||new Date().toISOString()}));
    const r=await cloud.from("passages").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
   if(forceAll){pa.clear();pp.clear()}else{
@@ -1557,7 +1557,7 @@ async function cloudPush(forceAll=false){
 async function fetchAllCloudRows(table){
  const rows=[],pageSize=500;
  for(let offset=0;;offset+=pageSize){
-  const result=await cloud.from(table).select("*").order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
+  const result=await cloud.from(table).select("*").eq("establishment_id",activeEstablishmentId).order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
   if(result.error)throw result.error;
   const batch=result.data||[];
   rows.push(...batch);
@@ -1583,10 +1583,16 @@ async function cloudPull(){
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function cloudStart(session){
+ const {data:profile,error}=await cloud.from("profiles").select("establishment_id,is_general_admin").eq("id",session.user.id).single();
+ if(error||!profile?.establishment_id){cloudMsg("Compte sans établissement autorisé.");return}
+ activeEstablishmentId=profile.establishment_id;
+ if(profile.is_general_admin){const choice=prompt("Centre : 1 = Mbour, 2 = Thiès","1");if(choice===null)return;if(choice.trim()==="2")activeEstablishmentId="68868eed-6abb-4fd8-bcef-1e08e781c1c8";}
+ const scope=session.user.id+":"+activeEstablishmentId;
+ if(localStorage.getItem("cmu_tenant_scope")!==scope){adherents=[];passages=[];for(const key of ["cmu_adherents","cmu_passages",PENDING_A_KEY,PENDING_P_KEY,"cmu_prescribers_extra"])localStorage.removeItem(key);localStorage.setItem("cmu_tenant_scope",scope)}
  document.getElementById("cloud-auth").style.display="none";loginUI(session.user.email);
- const countRes=await cloud.from("adherents").select("*",{count:"exact",head:true});
+ const countRes=await cloud.from("adherents").select("*",{count:"exact",head:true}).eq("establishment_id",activeEstablishmentId);
  if(countRes.error){cloudState(cloudErrorText("Erreur contrôle Supabase",countRes.error),15000);return}
- const count=countRes.count;const s=localSnapshot();if((count||0)===0&&(s.a.length||s.p.length))await cloudPush(true);else await cloudPull();
+ const count=countRes.count;const s=localSnapshot();await cloudPull();
  if(!cloudSubscribed){cloudSubscribed=true;cloud.channel("cmu-live").on("postgres_changes",{event:"*",schema:"public",table:"adherents"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).on("postgres_changes",{event:"*",schema:"public",table:"passages"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).subscribe()}
 }
 const localSave=save; save=function(){const before=localSnapshot();const ok=localSave();if(ok===false)return false;const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100);return true};
