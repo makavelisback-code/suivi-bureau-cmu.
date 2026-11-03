@@ -82,7 +82,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
 </style>
 
 <style id="cmu-print-style">@media print{body{background:white!important}#cloud-auth,#cloud-state,header.top,nav,.bottom-nav,.tabs,.tabbar,#sec-passage,#sec-adherents,#btn-export-stats-pdf,#btn-print-stats-pdf,.stats-filter,.month-nav,.custom-period,[data-html2canvas-ignore="true"]{display:none!important}#app{max-width:none!important;padding:0!important}#sec-stats{display:block!important;width:100%!important}.card{break-inside:avoid;box-shadow:none!important}button{display:none!important}#sec-stats:before{content:"Suivi Bureau CMU — Statistiques";display:block;font-size:22px;font-weight:bold;margin:10px 0 20px}} </style>
-<style>#dlg-add-adherent{max-height:88dvh;overflow-y:auto}#dlg-add-adherent .adherent-save-actions{position:sticky;bottom:-1px;background:white;padding:12px 0 6px;z-index:2;border-top:1px solid #DCE3DE}#dlg-add-adherent .adherent-save-actions button{width:100%;margin:4px 0;min-height:48px}</style></head>
+<style>#dlg-add-adherent{max-height:88dvh;overflow-y:auto}#dlg-add-adherent .adherent-save-actions{position:sticky;bottom:-1px;background:white;padding:12px 0 6px;z-index:2;border-top:1px solid #DCE3DE}#dlg-add-adherent .adherent-save-actions button{width:100%;margin:4px 0;min-height:48px}</style><style>#prestations-grid .cb-chip.care-excluded,#complementary-grid .cb-chip.care-excluded{background:#FEE4E2!important;border:2px solid #B42318!important;color:#912018!important}#prestations-grid .cb-chip.care-conditional,#complementary-grid .cb-chip.care-conditional{background:#FFF1D6!important;border:2px solid #C27B11!important;color:#7D4D00!important}#prestations-grid .cb-chip.selected,#complementary-grid .cb-chip.selected{outline:2px solid #0F6B5C;outline-offset:1px}</style></head>
 <body>
 <div id="login-screen"><div class="login-card"><h1>Suivi Bureau CMU</h1><p class="login-sub">Connexion agent</p><p class="label">Identifiant</p><input id="login-id" type="text" placeholder="Identifiant"><p class="label">Mot de passe</p><input id="login-pass" type="password" placeholder="Mot de passe"><p class="err" id="login-err">Identifiant ou mot de passe incorrect.</p><button class="btn-primary" id="btn-login">Se connecter</button></div></div>
 <div id="app">
@@ -160,7 +160,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
   <button type="button" class="btn-small" id="btn-add-med">+ Ajouter un médicament</button>
   <div class="bon-summary"><div><span>Total général</span><b id="bon-total">0 FCFA</b></div><div><span>À payer par le patient</span><b id="bon-patient">0 FCFA</b></div><div><span>À facturer au tiers payant</span><b id="bon-tiers">0 FCFA</b></div></div>
 </div>
-<div id="soins-block" hidden><p class="label">Service / prestation principale</p><div class="checkbox-grid" id="prestations-grid"></div><p class="label">Actes complémentaires</p><div class="checkbox-grid" id="complementary-grid"><div class="cb-chip" data-complement="Acte opératoire">Acte opératoire</div><div class="cb-chip" data-complement="Hospitalisation">Hospitalisation</div></div><p class="photo-hint">Ces actes complètent le service choisi et sont comptabilisés séparément dans les statistiques.</p></div><p class="err" id="err-type">Choisissez le type de passage.</p><button type="button" id="btn-correct-identity-passage" style="width:100%;padding:13px;margin:0 0 12px;background:#fff;border:2px solid #0F6B5C;border-radius:10px;color:#0A4F44;font-weight:700">✏️ Corriger l’identité du patient (sans nouveau passage)</button><button class="btn-primary" id="btn-save-passage">Enregistrer le passage</button>
+<div class="card" id="coverage-guide" style="padding:12px;margin-bottom:12px"><p class="label">Paquet de soins SEN-CSU — vérification indicative</p><div style="display:flex;gap:8px;flex-wrap:wrap"><label style="flex:1;min-width:130px">Régime<select id="care-regime" style="width:100%"><option value="contributif">Contributif</option><option value="bsfcec">BSF / CEC</option><option value="sesame">Plan Sésame</option><option value="enfant">Gratuité 0–5 ans</option><option value="cesarienne">Gratuité césarienne</option></select></label><label style="flex:1;min-width:130px">Structure<select id="care-level" style="width:100%"><option value="eps">EPS</option><option value="cs">Centre de santé</option><option value="ps">Poste de santé</option></select></label></div><p id="care-rule-summary" style="font-size:12px;margin:8px 0"></p><p style="font-size:12px;margin:0"><span style="color:#17654c">● Couvert</span> · <span style="color:#a05d00">● Sous conditions / à vérifier</span> · <span style="color:#b42318">● Rouge : hors paquet décrit</span>. Les exclusions de l'annexe non fournie ne sont pas présumées.</p></div><div id="soins-block" hidden><p class="label">Service / prestation principale</p><div class="checkbox-grid" id="prestations-grid"></div><p class="label">Actes complémentaires</p><div class="checkbox-grid" id="complementary-grid"><div class="cb-chip" data-complement="Acte opératoire">Acte opératoire</div><div class="cb-chip" data-complement="Hospitalisation">Hospitalisation</div></div><p class="photo-hint">Ces actes complètent le service choisi et sont comptabilisés séparément dans les statistiques.</p></div><p class="err" id="err-type">Choisissez le type de passage.</p><button type="button" id="btn-correct-identity-passage" style="width:100%;padding:13px;margin:0 0 12px;background:#fff;border:2px solid #0F6B5C;border-radius:10px;color:#0A4F44;font-weight:700">✏️ Corriger l’identité du patient (sans nouveau passage)</button><button class="btn-primary" id="btn-save-passage">Enregistrer le passage</button>
 </div><div class="card"><p class="label">Passages d'aujourd'hui</p><div id="today-list"></div></div></section>
 
 <section id="sec-adherents" style="position:relative"><button class="fab-add" id="btn-open-add-adherent">+</button><div class="card"><p class="label">Adhérents enregistrés</p><div class="search-box"><input id="adherents-search" type="text" placeholder="Nom, prénom, immatriculation ou téléphone"></div><div id="adherents-list"></div></div></section>
@@ -191,7 +191,7 @@ const DEFAULT_PRESTATIONS=[...new Set([
   "Bulletin d'examen radio","Cardiologie","Bulletin d'exploration cardiaque","Gynécologie","Kinésithérapie","Neurologie","ORL","Psychiatrie","SAU","Gastro-entérologie","Néphrologie",
   "Rhumatologie","Chirurgie générale","Médecine","Autre"
 ])].sort((a,b)=>a.localeCompare(b,"fr",{sensitivity:"base"}));
-const REQUIRED_PRESTATIONS=["Accouchement voie basse","Kinésithérapie","Bulletin d'exploration cardiaque","Bulletin d'exploration ophtalmologique","Dermatologie","Gynécologie","Neurologie","ORL"];
+const REQUIRED_PRESTATIONS=["Consultation de tri","Planification familiale","Consultation prénatale","Consultation postnatale","Petite chirurgie","Césarienne","Échographie obstétricale","IRM","Scanner d’urgence","Prothèses et orthèses","Appareillage médical","Transport par ambulance","Mise en observation","Bilan préopératoire","Accouchement voie basse","Kinésithérapie","Bulletin d'exploration cardiaque","Bulletin d'exploration ophtalmologique","Dermatologie","Gynécologie","Neurologie","ORL"];
 const PRESTATION_SUBGROUPS={
   "Cardiologie":["Bulletin d'exploration cardiaque"],
   "Optique":["Bulletin d'exploration ophtalmologique"]
@@ -275,6 +275,59 @@ function deletePrestation(name){
   renderPrestationChoices();
   toast("Prestation supprimée");
 }
+function careRule(p){
+ const regime=document.getElementById("care-regime")?.value||"contributif",level=document.getElementById("care-level")?.value||"eps";
+ const n=p.toLowerCase();
+ const consultation=/consultation|cardiologie|diabétologie|dermatologie|gynécologie|neurologie|orl|pédiatrie|pneumologie|néphrologie|rhumatologie|urologie|psychiatrie|gastro|médecine|odontologie|chirurgie générale|chirurgie pédiatrique|sau/.test(n);
+ const maternity=/maternité|accouchement|prénatale|postnatale|planification|obstétricale/.test(n);
+ const exam=/analyse|radio|exploration|échographie|scanner|irm|bilan préopératoire/.test(n);
+ const surgical=/chirurgie|opératoire|césarienne|petite chirurgie/.test(n);
+ const transport=/transport/.test(n),observation=/observation/.test(n);
+ if(regime==="enfant"){
+  if(consultation&&!surgical)return "covered";
+  if(level==="eps")return "excluded";
+  if(/hospitalisation/.test(n)&&level==="cs")return "covered";
+  return "excluded";
+ }
+ if(regime==="cesarienne"){
+  if(level==="ps")return "excluded";
+  if(/césarienne|bilan préopératoire|hospitalisation|réanimation/.test(n))return "covered";
+  return "excluded";
+ }
+ if(regime==="bsfcec"){
+  if(level==="eps"&&/irm|prothèses|orthèses|appareillage/.test(n))return "conditional";
+  if(level==="eps"&&surgical&&!/césarienne|petite chirurgie/.test(n))return "conditional";
+  if(level==="ps"&&(exam||/hospitalisation|prothèses|orthèses|appareillage/.test(n)))return "excluded";
+  if(level==="ps"&&/scanner|irm/.test(n))return "excluded";
+  return "covered";
+ }
+ if(regime==="sesame"){
+  if(level==="ps"&&(exam||/hospitalisation|maternité|accouchement|prothèses|orthèses/.test(n)))return "excluded";
+  if(level==="cs"&&/scanner/.test(n)&&!/urgence/.test(n))return "conditional";
+  return "covered";
+ }
+ if(level==="ps"&&(exam||/hospitalisation|acte opératoire|prothèses|orthèses|appareillage/.test(n)))return "excluded";
+ if(level==="eps"&&transport)return "conditional";
+ if(level==="ps"&&surgical&&!/petite chirurgie/.test(n))return "excluded";
+ return "covered";
+}
+function updateCareGuide(){
+ const regime=document.getElementById("care-regime").value,level=document.getElementById("care-level").value;
+ const rate=regime==="contributif"?"80 %":regime==="bsfcec"?(level==="eps"?"80 % (100 % avec attestation trimestrielle)":"100 %"):"100 %";
+ document.getElementById("care-rule-summary").textContent="Prise en charge de référence : "+rate+". Le niveau et le régime sont à vérifier avant validation.";
+ document.querySelectorAll("#prestations-grid .cb-chip").forEach(d=>{
+  const status=careRule(d.dataset.prestation||"");
+  d.classList.toggle("care-excluded",status==="excluded");
+  d.classList.toggle("care-conditional",status==="conditional");
+  d.title=status==="excluded"?"Hors paquet de soins décrit pour ce régime et ce niveau":status==="conditional"?"Prise en charge sous conditions / à vérifier":"Prestation couverte sous réserve des conditions de la convention";
+ });
+ document.querySelectorAll("#complementary-grid [data-complement]").forEach(d=>{
+  const status=careRule(d.dataset.complement);
+  d.classList.toggle("care-excluded",status==="excluded");d.classList.toggle("care-conditional",status==="conditional");
+ });
+}
+document.getElementById("care-regime").addEventListener("change",updateCareGuide);
+document.getElementById("care-level").addEventListener("change",updateCareGuide);
 function renderPrestationChoices(){
   const grid=document.getElementById("prestations-grid");
   grid.innerHTML="";
@@ -285,7 +338,7 @@ function renderPrestationChoices(){
     if(!PRESTATIONS.includes(p))return;
     const d=document.createElement("div");
     d.className="cb-chip"+(selected.has(p)?" selected":"")+(isSubgroup?" subgroup":"");
-    d.textContent=(isSubgroup?"↳ ":"")+p;
+    d.textContent=(isSubgroup?"↳ ":"")+p;d.dataset.prestation=p;
     if(isSubgroup)d.title="Sous-groupe de "+parent;
     addLongPress(d,()=>deletePrestation(p),()=>{
       selected.has(p)?selected.delete(p):selected.add(p);
@@ -298,6 +351,7 @@ function renderPrestationChoices(){
     addChoice(p,false,"");
     (PRESTATION_SUBGROUPS[p]||[]).forEach(c=>addChoice(c,true,p));
   });
+  updateCareGuide();
 }
 function setup(){sanitizePassages();renderPrestationChoices();setupComplementaryChoices();resetPharmaForm();render();if(currentAgent)loginUI(currentAgent)}
 function setupComplementaryChoices(){document.querySelectorAll("#complementary-grid [data-complement]").forEach(d=>{d.onclick=()=>{const v=d.dataset.complement;complementarySelected.has(v)?complementarySelected.delete(v):complementarySelected.add(v);d.classList.toggle("selected",complementarySelected.has(v));toast(complementarySelected.has(v)?"✓ Acte complémentaire : "+v:"Acte complémentaire retiré : "+v)}})}
@@ -309,7 +363,7 @@ function selectCat(c,notify=false){category=c;document.getElementById("pill-soin
 document.getElementById("pill-soins").onclick=()=>selectCat("soins",true);document.getElementById("pill-pharma").onclick=()=>selectCat("pharmacie",true);
 function selectGender(g,notify=false){gender=g;["gender-f","gender-m"].forEach(id=>document.getElementById(id).classList.remove("active-soins","active-pharma"));if(g)document.getElementById("gender-"+g.toLowerCase()).classList.add("active-soins");if(notify&&g)toast("✓ Sexe "+g+" sélectionné")}
 document.getElementById("gender-f").onclick=()=>selectGender("F",true);document.getElementById("gender-m").onclick=()=>selectGender("M",true);
-function selectInsurance(v,notify=false){insuranceType=v;document.getElementById("cec-rate-box").style.display=v==="CEC"?"block":"none";if(v!=="CEC")document.getElementById("cec-rate").value="";["insurance-classique","insurance-sesame","insurance-cec"].forEach(id=>document.getElementById(id).classList.remove("active-insurance"));if(v)document.getElementById("insurance-"+(v==="Classique"?"classique":v==="CEC"?"cec":"sesame")).classList.add("active-insurance");if(notify&&v)toast("✓ "+(v==="Classique"?"Classique (carte)":v==="CEC"?"CEC":"Plan Sésame")+" sélectionné")}
+function selectInsurance(v,notify=false){insuranceType=v;const rg=document.getElementById("care-regime");if(rg){rg.value=v==="CEC"?"bsfcec":v==="Plan Sésame"?"sesame":"contributif";updateCareGuide()}document.getElementById("cec-rate-box").style.display=v==="CEC"?"block":"none";if(v!=="CEC")document.getElementById("cec-rate").value="";["insurance-classique","insurance-sesame","insurance-cec"].forEach(id=>document.getElementById(id).classList.remove("active-insurance"));if(v)document.getElementById("insurance-"+(v==="Classique"?"classique":v==="CEC"?"cec":"sesame")).classList.add("active-insurance");if(notify&&v)toast("✓ "+(v==="Classique"?"Classique (carte)":v==="CEC"?"CEC":"Plan Sésame")+" sélectionné")}
 document.getElementById("insurance-classique").onclick=()=>selectInsurance("Classique",true);document.getElementById("insurance-sesame").onclick=()=>selectInsurance("Plan Sésame",true);document.getElementById("insurance-cec").onclick=()=>selectInsurance("CEC",true);
 function selectNewGender(g,notify=false){["new-gender-f","new-gender-m"].forEach(id=>document.getElementById(id).classList.remove("active-soins","active-pharma"));if(g)document.getElementById("new-gender-"+g.toLowerCase()).classList.add("active-soins");document.getElementById("new-gender-f").dataset.selected=g==="F"?"1":"";document.getElementById("new-gender-m").dataset.selected=g==="M"?"1":"";if(notify&&g)toast("✓ Sexe "+g+" sélectionné")}
 document.getElementById("new-gender-f").onclick=()=>selectNewGender("F",true);document.getElementById("new-gender-m").onclick=()=>selectNewGender("M",true);
@@ -363,6 +417,7 @@ function savePassage(){
   if(!(numero||(prenom&&nom))){show("err-identite");toast("Enregistrement impossible : identité incomplète","error");return}
   if(!category){show("err-type");toast("Choix non validé : sélectionnez le type de passage","error");return}
   if(!gender||!insuranceType){show("err-profil");toast("Choix non validé : F/M et type d’assuré requis","error");return}
+  if(category==="soins"){const excluded=[...selected,...complementarySelected].filter(x=>careRule(x)==="excluded");if(excluded.length&&!confirm("Attention : hors paquet décrit pour le régime et la structure sélectionnés : "+excluded.join(", ")+". Confirmer tout de même la saisie ?"))return;const conditional=[...selected,...complementarySelected].filter(x=>careRule(x)==="conditional");if(conditional.length&&!confirm("Prestations sous conditions à vérifier : "+conditional.join(", ")+". Continuer ?"))return}
   const cecRate=insuranceType==="CEC"?Number(document.getElementById("cec-rate").value):null;
   if(insuranceType==="CEC"&&![80,100].includes(cecRate)){toast("CEC : choisissez le taux 80 % ou 100 %","error");document.getElementById("cec-rate").focus();return}
   if(category==="pharmacie"&&!prescriber){toast("Bon pharmacie incomplet : renseignez le prescripteur","error");return}
@@ -381,7 +436,7 @@ function savePassage(){
     const meds=getMedications(),total=meds.reduce((z,x)=>z+x.quantite*x.prixUnitaire,0),rate=insuranceType==="CEC"?cecRate/100:pharmacyCircuit==="public"?.8:.5;
     pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:f("bon-pharmacie"),structureSante:f("bon-structure"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
   }
-  passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});if(!save()){toast("⚠️ Passage non sauvegardé. Libérez de l’espace sans effacer les données du site.","error");return}
+  passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,careRegime:document.getElementById("care-regime").value,careLevel:document.getElementById("care-level").value,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});if(!save()){toast("⚠️ Passage non sauvegardé. Libérez de l’espace sans effacer les données du site.","error");return}
   ["f-prenom","f-nom","f-numero","f-telephone","f-prescriber"].forEach(x=>document.getElementById(x).value="");selected.clear();complementarySelected.clear();gender=null;insuranceType=null;document.getElementById("cec-rate").value="";document.getElementById("cec-rate-box").style.display="none";document.querySelectorAll("#gender-f,#gender-m").forEach(x=>x.classList.remove("active-soins","active-pharma"));document.querySelectorAll("#insurance-classique,#insurance-sesame,#insurance-cec").forEach(x=>x.classList.remove("active-insurance"));document.querySelectorAll(".cb-chip").forEach(x=>x.classList.remove("selected"));resetPharmaForm();selectCat(null);document.getElementById("passage-photo-box").textContent="Aucune photo";document.getElementById("passage-photo-box").dataset.photo="";document.getElementById("ocr-status").textContent="";document.getElementById("cmu-doc-status").textContent="";document.getElementById("cmu-doc-result").classList.remove("show");document.getElementById("cmu-doc-result").innerHTML="";document.getElementById("guarantee-doc-form")?.classList.remove("show");document.getElementById("bon-doc-form")?.classList.remove("show");document.getElementById("monthly-status").style.display="none";toast("✓ Passage enregistré avec succès");render()
 }
 
