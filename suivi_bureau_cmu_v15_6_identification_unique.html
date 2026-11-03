@@ -459,7 +459,7 @@ function savePassage(){
   let pharmacy=null;
   if(category==="pharmacie"){
     const meds=getMedications(),total=meds.reduce((z,x)=>z+x.quantite*x.prixUnitaire,0),rate=insuranceType==="CEC"?cecRate/100:pharmacyCircuit==="public"?.8:.5;
-    pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:f("bon-pharmacie"),structureSante:f("bon-structure"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
+    pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:canonicalPharmacy(f("bon-pharmacie")),structureSante:f("bon-structure"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
   }
   passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,careRegime:document.getElementById("care-regime").value,careLevel:document.getElementById("care-level").value,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});if(!save()){toast("⚠️ Passage non sauvegardé. Libérez de l’espace sans effacer les données du site.","error");return}
   ["f-prenom","f-nom","f-numero","f-telephone","f-prescriber"].forEach(x=>document.getElementById(x).value="");selected.clear();complementarySelected.clear();gender=null;insuranceType=null;document.getElementById("cec-rate").value="";document.getElementById("cec-rate-box").style.display="none";document.querySelectorAll("#gender-f,#gender-m").forEach(x=>x.classList.remove("active-soins","active-pharma"));document.querySelectorAll("#insurance-classique,#insurance-sesame,#insurance-cec").forEach(x=>x.classList.remove("active-insurance"));document.querySelectorAll(".cb-chip").forEach(x=>x.classList.remove("selected"));resetPharmaForm();selectCat(null);document.getElementById("passage-photo-box").textContent="Aucune photo";document.getElementById("passage-photo-box").dataset.photo="";document.getElementById("ocr-status").textContent="";document.getElementById("cmu-doc-status").textContent="";document.getElementById("cmu-doc-result").classList.remove("show");document.getElementById("cmu-doc-result").innerHTML="";document.getElementById("guarantee-doc-form")?.classList.remove("show");document.getElementById("bon-doc-form")?.classList.remove("show");document.getElementById("monthly-status").style.display="none";toast("✓ Passage enregistré avec succès");render()
@@ -1147,21 +1147,22 @@ function renderGenderActivityStats(ps){
   box.innerHTML=html;
 }
 const CMU_PHARMACIES=["Salve Regina","Pape Cheikh Diagne","Khadidiatou"];
-function cleanDirectoryName(s){return String(s||"").trim().replace(/\\s+/g," ")}
-function pharmacyKey(s){return cleanDirectoryName(s).normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function cleanDirectoryName(s){return String(s||"").trim().replace(/\s+/g," ")}
+function pharmacyKey(s){return cleanDirectoryName(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")}
 function canonicalPharmacy(s){
  const v=cleanDirectoryName(s),k=pharmacyKey(v);
  if(!k)return "";
- if(/salve?regina|salveregina/.test(k))return "Salve Regina";
- if(/papecheikhdiagne|papecheikhdjagne/.test(k))return "Pape Cheikh Diagne";
- if(/khadidiatou|khadijatou/.test(k))return "Khadidiatou";
+ if(k.includes("salveregina")||k.includes("salvregina")||k.includes("salveregine"))return "Salve Regina";
+ if(k.includes("papecheikhdiagne")||k.includes("papecheikhdjagne")||k.includes("papecheikdiagne"))return "Pape Cheikh Diagne";
+ if(k.includes("khadidiatou")||k.includes("khadijatou")||k.includes("khadidjatou"))return "Khadidiatou";
  return v;
 }
+function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||p?.pharmacyName||"")}
 function refreshPharmacyDirectories(){
  const pharmacies=new Map(CMU_PHARMACIES.map(x=>[pharmacyKey(x),x]));
  const prescribers=new Map();
  passages.forEach(p=>{
-  const pharmacy=canonicalPharmacy(p.pharmacy?.pharmacie||"");
+  const pharmacy=passagePharmacyName(p);
   if(pharmacy)pharmacies.set(pharmacyKey(pharmacy),pharmacy);
   const dr=cleanDirectoryName(p.prescriber);
   if(dr)prescribers.set(pharmacyKey(dr),dr);
@@ -1182,7 +1183,7 @@ function renderPharmacyShares(ps){
  defaults.forEach(name=>groups.set(pharmacyKey(name),{name,ids:new Set(),count:0}));
  let unknown=0;const unknownIds=new Set();
  all.forEach(p=>{
-  const name=canonicalPharmacy(p.pharmacy?.pharmacie||"");
+  const name=passagePharmacyName(p);
   if(!name){unknown++;if(p.adherentId)unknownIds.add(String(p.adherentId));return}
   const key=pharmacyKey(name);
   if(!groups.has(key))groups.set(key,{name,ids:new Set(),count:0});
@@ -1480,7 +1481,7 @@ async function cloudPull(){
   const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
   const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
-  const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?d:null,prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
+  const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?{...d,pharmacie:d.pharmacie||x.pharmacy_name||""}:null,prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
   // Protect local entries during a delayed cloud response. Re-check pending IDs after network awaits.
   const freshA=pendingSet(PENDING_A_KEY),freshP=pendingSet(PENDING_P_KEY);
   const current=localSnapshot();
