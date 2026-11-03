@@ -1310,7 +1310,7 @@ async function exportStatsPDF(){
   if(!window.jspdf?.jsPDF)throw Error("Bibliotheque PDF indisponible");
   renderStats();
   const pdf=new window.jspdf.jsPDF("p","mm","a4"),W=210,H=297,L=16,R=194;
-  const clean=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\x20-\x7e]/g," ").replace(/\s+/g," ").trim();
+  const clean=s=>String(s??"").replace(/[\u2018\u2019]/g,"\u0027").replace(/[\u2013\u2014]/g,"-").replace(/\u0153/g,"oe").replace(/\u0152/g,"OE").replace(/\u20ac/g,"EUR").replace(/[^\x20-\x7e\u00a0-\u00ff]/g," ").replace(/\s+/g," ").trim();
   const now=new Date(),period=currentStatsPeriodLabel();
   let start,end;
   if(statPeriod==="month"){start=new Date(statMonth.getFullYear(),statMonth.getMonth(),1);end=new Date(statMonth.getFullYear(),statMonth.getMonth()+1,1)}
@@ -1331,6 +1331,7 @@ async function exportStatsPDF(){
   const prestations=[...prestationMap].sort((x,y)=>y[1]-x[1]);
   const prescriberMap=new Map();ph.forEach(p=>{const n=clean(p.prescriber);if(n)prescriberMap.set(n,(prescriberMap.get(n)||0)+1)});
   const prescribers=[...prescriberMap].sort((x,y)=>y[1]-x[1]);
+  const pct=(n,d)=>d?(100*n/d).toFixed(1):"0,0";
   let y=17,page=0;
   function header(title){if(page)pdf.addPage();page++;y=17;pdf.setFillColor(15,107,92);pdf.rect(0,0,W,10,"F");pdf.setTextColor(15,80,68);pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(clean(title),L,y);y+=8;pdf.setTextColor(80,90,85);pdf.setFont("helvetica","normal");pdf.setFontSize(9);pdf.text(clean("Periode : "+period),L,y);y+=10}
   function footer(){pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(110,115,115);pdf.text("Suivi Bureau CMU - Statistiques issues des passages enregistres",L,288);pdf.text("Page "+page,R,288,{align:"right"});pdf.setTextColor(30,40,40)}
@@ -1341,43 +1342,44 @@ async function exportStatsPDF(){
   function bar(label,count,max,color=[15,107,92]){next(16);pdf.setFont("helvetica","normal");pdf.setFontSize(9);pdf.text(clean(label).slice(0,59),L,y);pdf.setFont("helvetica","bold");pdf.text(String(count),R,y,{align:"right"});y+=3;pdf.setFillColor(233,239,235);pdf.roundedRect(L,y,R-L,5,2,2,"F");pdf.setFillColor(...color);if(count>0)pdf.roundedRect(L,y,Math.max(1,(R-L)*count/Math.max(1,max)),5,2,2,"F");y+=11}
   function comment(t){next(15);pdf.setFillColor(245,248,246);const lines=pdf.splitTextToSize(clean("Analyse : "+t),R-L-10);const h=lines.length*4.5+9;next(h);pdf.roundedRect(L,y,R-L,h,2,2,"F");pdf.setFontSize(9);pdf.setFont("helvetica","normal");pdf.setTextColor(65,75,70);pdf.text(lines,L+5,y+7);y+=h+5;pdf.setTextColor(30,40,40)}
   function pie(values){const sum=values.reduce((a,x)=>a+x.value,0);if(!sum)return;next(77);const cx=63,cy=y+34,r=30;const palette=[[15,107,92],[67,137,189],[211,154,54],[165,118,189],[160,165,162]];let angle=-Math.PI/2;values.forEach((v,i)=>{const span=2*Math.PI*v.value/sum,steps=Math.max(2,Math.ceil(span/.08));pdf.setFillColor(...palette[i%palette.length]);for(let j=0;j<steps;j++){const a=angle+span*j/steps,b=angle+span*(j+1)/steps;pdf.triangle(cx,cy,cx+r*Math.cos(a),cy+r*Math.sin(a),cx+r*Math.cos(b),cy+r*Math.sin(b),"F")}angle+=span});values.forEach((v,i)=>{pdf.setFillColor(...palette[i%palette.length]);pdf.rect(105,y+7+i*10,4,4,"F");pdf.setFontSize(9);pdf.text(clean(v.name).slice(0,22)+" : "+(100*v.value/sum).toFixed(1)+" %",112,y+10+i*10)});y+=74}
-  header("Rapport statistique - Synthese");
+  header("RAPPORT STATISTIQUE - SYNTHÈSE");
   textLine("Edition du "+now.toLocaleDateString("fr-FR")+" - Bureau SEN-CSU / EPS Mbour",9);
-  section("1. Indicateurs generaux");
+  section("1. Indicateurs généraux");
   row("Patients distincts",totalPatients);row("Passages enregistres",ps.length);row("Passages soins / prestations",so.length);row("Passages pharmacie",ph.length);
   comment("Les patients distincts sont dedoublonnes par identifiant. Un meme patient peut avoir plusieurs passages et plusieurs prestations.");
-  section("2. Repartition des passages");
+  section("2. Répartition des passages");
   bar("Soins / prestations",so.length,Math.max(so.length,ph.length));bar("Pharmacie",ph.length,Math.max(so.length,ph.length),[67,137,189]);
   pie([{name:"Soins",value:so.length},{name:"Pharmacie",value:ph.length}]);
-  comment(ph.length>so.length?"Les passages pharmacie sont majoritaires sur la periode.":"Les soins et prestations representent au moins autant de passages que la pharmacie sur la periode.");
-  footer();header("Profil des patients");
-  section("3. Repartition par sexe (patients distincts)");
+  comment("Sur "+ps.length+" passages, "+so.length+" concernent les soins ("+pct(so.length,ps.length)+" %) et "+ph.length+" la pharmacie ("+pct(ph.length,ps.length)+" %). Cette répartition décrit les saisies, pas la charge réelle de chaque service.");
+  footer();header("PROFIL DES PATIENTS");
+  section("3. Répartition par sexe (patients distincts)");
   row("Femmes",genders.F);row("Hommes",genders.M);row("Non renseigne",genders.other);
   pie([{name:"Femmes",value:genders.F},{name:"Hommes",value:genders.M},{name:"Non renseigne",value:genders.other}]);
-  comment("Cette repartition concerne les patients distincts de la periode, et non le nombre total de passages.");
-  footer();header("Soins et prestations");
-  section("4. Prestations les plus demandees");
+  comment("Parmi "+totalPatients+" patients distincts, "+genders.F+" sont des femmes ("+pct(genders.F,totalPatients)+" %) et "+genders.M+" des hommes ("+pct(genders.M,totalPatients)+" %). Les patients sans sexe renseigné sont présentés séparément.");
+  footer();header("SOINS ET PRESTATIONS");
+  section("4. Prestations les plus demandées");
   if(!prestations.length)textLine("Aucune prestation renseignee pour cette periode.");
-  prestations.slice(0,12).forEach(([n,v])=>bar(n,v,prestations[0][1]));
-  comment("Un passage peut contenir plusieurs prestations. La somme des demandes par prestation peut donc depasser le nombre de passages soins.");
-  section("5. Tableau detaille des prestations");
+  prestations.slice(0,9).forEach(([n,v])=>bar(n,v,prestations[0][1]));
+  comment(prestations.length?"La prestation la plus enregistrée est « "+prestations[0][0]+" » ("+prestations[0][1]+" demandes). Un passage pouvant comporter plusieurs actes, la somme des prestations peut dépasser "+so.length+" passages de soins.":"Aucune prestation détaillée n’est renseignée sur cette période.");
+  section("5. Tableau détaillé des prestations");
   prestations.forEach(([n,v])=>row(n,v));
-  footer();header("Pharmacies partenaires");
+  footer();header("PHARMACIES PARTENAIRES");
   section("6. Patients et passages par pharmacie");
   row("Patients distincts avec passage pharmacie",distinct(ph));row("Passages pharmacie",ph.length);
   pharmacies.forEach(g=>{row(g.name,g.ids.size+" patients / "+g.passages.length+" passages");bar(g.name,g.passages.length,Math.max(1,...pharmacies.map(x=>x.passages.length)))});
   if(missing.length)row("Pharmacie non renseignee",missing.length+" passages");
-  section("7. Diagramme de repartition des passages pharmacie");
+  section("7. Répartition des passages par pharmacie");
   pie([...pharmacies.map(g=>({name:g.name,value:g.passages.length})),...(missing.length?[{name:"Non renseignee",value:missing.length}]:[])]);
-  comment("Les pourcentages portent sur les passages pharmacie. Un patient frequentant plusieurs pharmacies est compte une fois dans chacune. Les noms non renseignes ne sont pas attribues arbitrairement.");
-  footer();header("Prescripteurs et observations");
-  section("8. Prescripteurs les plus frequents");
+  comment(pharmacies.length?"La pharmacie la plus représentée est "+pharmacies[0].name+" avec "+pharmacies[0].passages.length+" passages ("+pct(pharmacies[0].passages.length,ph.length)+" %). "+(missing.length?missing.length+" passage(s) n’ont pas de pharmacie identifiée. ":"")+"Les pourcentages décrivent les orientations saisies, non la délivrance effective.":"Aucune pharmacie n’est identifiée pour les passages de cette période.");
+  footer();header("PRESCRIPTEURS ET OBSERVATIONS");
+  section("8. Prescripteurs les plus fréquents");
   if(!prescribers.length)textLine("Aucun prescripteur renseigne.");
-  prescribers.slice(0,15).forEach(([n,v])=>bar(n,v,prescribers[0][1]));
+  prescribers.slice(0,9).forEach(([n,v])=>bar(n,v,prescribers[0][1]));
+  comment(prescribers.length?"Le prescripteur le plus souvent renseigné est "+prescribers[0][0]+" ("+prescribers[0][1]+" passages pharmacie). Les noms sont repris tels que saisis et peuvent comporter des variantes.":"Aucun nom de prescripteur n’est renseigné sur la période.");
   section("9. Limites et recommandations");
-  textLine("Les statistiques reposent sur les passages saisis dans l'application. Elles ne constituent pas une preuve de delivrance effective des medicaments.");
-  textLine("Verifier les champs non renseignes et les doublons d'identite. Les donnees ne doivent pas etre corrigees automatiquement sans justificatif.");
-  textLine("Les graphiques et les tableaux sont produits directement depuis les enregistrements, sans capture d'ecran ni decoupage arbitraire.");
+  textLine("Les statistiques reposent sur les passages saisis dans l\u0027application. Elles ne constituent pas une preuve de délivrance effective des médicaments.");
+  textLine("Vérifier les champs non renseignés et les doublons d\u0027identité. Les données ne doivent pas être corrigées automatiquement sans justificatif.");
+  textLine("Les graphiques et les tableaux sont produits directement à partir des enregistrements, sans capture d\u0027écran.");
   footer();
   const stamp=now.toISOString().slice(0,10);
   pdf.save("rapport_statistique_CMU_"+clean(period).replace(/[^a-z0-9]+/gi,"_")+"_"+stamp+".pdf");
