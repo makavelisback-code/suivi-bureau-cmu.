@@ -1157,7 +1157,7 @@ function canonicalPharmacy(s){
  if(k.includes("khadidiatou")||k.includes("khadijatou")||k.includes("khadidjatou"))return "Khadidiatou";
  return v;
 }
-function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||p?.pharmacyName||"")}
+function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacyName||p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||"")}
 function refreshPharmacyDirectories(){
  const pharmacies=new Map(CMU_PHARMACIES.map(x=>[pharmacyKey(x),x]));
  const prescribers=new Map();
@@ -1481,7 +1481,7 @@ async function cloudPull(){
   const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
   const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
-  const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?{...d,pharmacie:d.pharmacie||x.pharmacy_name||""}:null,prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
+  const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?{...d,pharmacie:x.pharmacy_name||d.pharmacie||""}:null,pharmacyName:x.pharmacy_name||d.pharmacie||"",prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
   // Protect local entries during a delayed cloud response. Re-check pending IDs after network awaits.
   const freshA=pendingSet(PENDING_A_KEY),freshP=pendingSet(PENDING_P_KEY);
   const current=localSnapshot();
