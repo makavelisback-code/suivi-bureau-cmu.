@@ -160,7 +160,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
   <button type="button" class="btn-small" id="btn-add-med">+ Ajouter un médicament</button>
   <div class="bon-summary"><div><span>Total général</span><b id="bon-total">0 FCFA</b></div><div><span>À payer par le patient</span><b id="bon-patient">0 FCFA</b></div><div><span>À facturer au tiers payant</span><b id="bon-tiers">0 FCFA</b></div></div>
 </div>
-<div id="soins-block" hidden><p class="label">Service / prestation principale</p><div class="checkbox-grid" id="prestations-grid"></div><p class="label">Actes complémentaires</p><div class="checkbox-grid" id="complementary-grid"><div class="cb-chip" data-complement="Acte opératoire">Acte opératoire</div><div class="cb-chip" data-complement="Hospitalisation">Hospitalisation</div></div><p class="photo-hint">Ces actes complètent le service choisi et sont comptabilisés séparément dans les statistiques.</p></div><p class="err" id="err-type">Choisissez le type de passage.</p><button class="btn-primary" id="btn-save-passage">Enregistrer le passage</button>
+<div id="soins-block" hidden><p class="label">Service / prestation principale</p><div class="checkbox-grid" id="prestations-grid"></div><p class="label">Actes complémentaires</p><div class="checkbox-grid" id="complementary-grid"><div class="cb-chip" data-complement="Acte opératoire">Acte opératoire</div><div class="cb-chip" data-complement="Hospitalisation">Hospitalisation</div></div><p class="photo-hint">Ces actes complètent le service choisi et sont comptabilisés séparément dans les statistiques.</p></div><p class="err" id="err-type">Choisissez le type de passage.</p><button type="button" id="btn-correct-identity-passage" style="width:100%;padding:13px;margin:0 0 12px;background:#fff;border:2px solid #0F6B5C;border-radius:10px;color:#0A4F44;font-weight:700">✏️ Corriger l’identité du patient (sans nouveau passage)</button><button class="btn-primary" id="btn-save-passage">Enregistrer le passage</button>
 </div><div class="card"><p class="label">Passages d'aujourd'hui</p><div id="today-list"></div></div></section>
 
 <section id="sec-adherents" style="position:relative"><button class="fab-add" id="btn-open-add-adherent">+</button><div class="card"><p class="label">Adhérents enregistrés</p><div class="search-box"><input id="adherents-search" type="text" placeholder="Nom, prénom, immatriculation ou téléphone"></div><div id="adherents-list"></div></div></section>
@@ -831,6 +831,14 @@ function resetAdherentDialog(){
   const b=document.getElementById("new-photo-box");b.textContent="Aucune photo";b.dataset.photo="";
   hide("err-new-nom");hide("err-new-profile");
 }
+function correctIdentityFromPassage(){
+ const numero=f("f-numero");
+ if(!numero){toast("Renseignez le numéro d’immatriculation du patient","error");document.getElementById("f-numero").focus();return}
+ const a=adherents.find(x=>normNumero(x.numero)===normNumero(numero));
+ if(!a){toast("Patient introuvable : recherchez son dossier dans Adhérents","error");return}
+ editAdherent(a.id);
+}
+document.getElementById("btn-correct-identity-passage").onclick=correctIdentityFromPassage;
 function editAdherent(id){
   const a=adherents.find(x=>x.id===id);if(!a)return;
   editingAdherentId=id;
@@ -844,7 +852,9 @@ function editAdherent(id){
   const b=document.getElementById("new-photo-box");
   if(a.photo){b.innerHTML=`<img src="${a.photo}" alt="Photo adhérent">`;b.dataset.photo=a.photo}else{b.textContent="Aucune photo";b.dataset.photo=""}
   hide("err-new-nom");hide("err-new-profile");
-  document.getElementById("dlg-add-adherent").showModal();
+  const dialog=document.getElementById("dlg-add-adherent");
+  if(!dialog.open)dialog.showModal();
+  dialog.scrollTop=0;
 }
 document.getElementById("btn-open-add-adherent").onclick=()=>{
   resetAdherentDialog();
