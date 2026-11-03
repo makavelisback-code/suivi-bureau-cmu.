@@ -930,7 +930,7 @@ function renderAdherents(){
       list=adherents.filter(a=>name(a).toLowerCase().includes(q)||(a.numero||"").toLowerCase().includes(q)||(a.telephone||"").includes(q)),
       box=document.getElementById("adherents-list");
   box.innerHTML=list.length?list.map(a=>`<div class="adherent-row" data-adherent-id="${a.id}"><div class="avatar">${a.photo?`<img src="${a.photo}" alt="">`:initials(a)}</div><div class="adherent-info"><p class="nom">${esc(name(a))}</p><p class="num">${esc(a.numero||"Sans immatriculation")} · ${esc(a.telephone||"")} · ${esc(a.gender||"?")} · ${esc(a.insuranceType||"Type non renseigné")}</p></div><button class="btn-edit-adherent" data-edit-id="${a.id}" type="button">✏️ Modifier</button></div>`).join(""):'<p class="empty">Aucun adhérent.</p>';
-  box.querySelectorAll(".btn-edit-adherent").forEach(btn=>btn.onclick=e=>{e.stopPropagation();editAdherent(btn.dataset.editId)});
+  box.querySelectorAll(".btn-edit-adherent").forEach(btn=>{["pointerdown","pointerup","touchstart","touchend"].forEach(type=>btn.addEventListener(type,e=>e.stopPropagation()));btn.onclick=e=>{e.preventDefault();e.stopPropagation();editAdherent(btn.dataset.editId)}});
   box.querySelectorAll(".adherent-row").forEach(row=>{
     const id=row.dataset.adherentId;
     addLongPress(row,()=>deleteAdherent(id),()=>loadAdherentToPassage(id));
