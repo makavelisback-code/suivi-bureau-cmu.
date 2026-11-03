@@ -1302,69 +1302,89 @@ function currentStatsPeriodLabel(){
   }
   return names[statPeriod]||"Période sélectionnée";
 }
-function exportStatsPDFText(){
- const lib=window.jspdf;if(!lib||!lib.jsPDF)throw new Error("Bibliothèque PDF non chargée");
- const pdf=new lib.jsPDF("p","mm","a4");
- const label=currentStatsPeriodLabel(),sec=document.getElementById("sec-stats");
- let y=17;const margin=14,width=182;
- function line(t,bold=false){pdf.setFont("helvetica",bold?"bold":"normal");pdf.setFontSize(bold?12:9);const lines=pdf.splitTextToSize(String(t||"").replace(/[^\\x20-\\x7E\\xA0-\\xFF]/g," "),width);for(const l of lines){if(y>278){pdf.addPage();y=16}pdf.text(l,margin,y);y+=bold?6:4.6}}
- line("Suivi Bureau CMU - Rapport statistique",true);line("Periode : "+label,true);line("Genere le "+new Date().toLocaleString("fr-FR"));y+=5;
- const clone=sec.cloneNode(true);clone.querySelectorAll("[data-html2canvas-ignore='true'],button,input,select,.chart-switch,svg,canvas").forEach(e=>e.remove());
- clone.querySelectorAll("script,style").forEach(e=>e.remove());
- const blocks=clone.querySelectorAll(".card");
- blocks.forEach((card,i)=>{const raw=(card.innerText||card.textContent||"").replace(/\\s+/g," ").trim();if(raw){line("Section "+(i+1),true);line(raw);y+=3}});
- const file="statistiques_CMU_"+label.replace(/[^a-z0-9]+/gi,"_")+".pdf";
- pdf.save(file);
-}
+function exportStatsPDFText(){return exportStatsPDF()}
 async function exportStatsPDF(){
-  const btn=document.getElementById("btn-export-stats-pdf"),status=document.getElementById("export-pdf-status");
-  btn.disabled=true;btn.textContent="Création du PDF…";status.textContent="Préparation des statistiques et graphiques…";
-  try{
-    renderStats();
-    await new Promise(r=>setTimeout(r,120));
-    const sec=document.getElementById("sec-stats");
-    const wrap=document.createElement("div");
-    wrap.style.cssText="position:fixed;left:-10000px;top:0;width:794px;background:#FAFAF8;padding:28px;font-family:Arial,sans-serif;z-index:-1";
-    const title=document.createElement("div");
-    title.innerHTML=`<h2 style="margin:0 0 4px;color:#0A4F44">Suivi Bureau CMU — Rapport statistique</h2><p style="margin:0 0 16px;color:#6B7570;font-size:13px">Période : ${esc(currentStatsPeriodLabel())} · Généré le ${new Date().toLocaleString("fr-FR")}</p>`;
-    wrap.appendChild(title);
-    const clone=sec.cloneNode(true);
-    clone.classList.add("active");
-    clone.style.display="block";
-    clone.style.width="100%";
-    clone.querySelectorAll("[data-html2canvas-ignore='true']").forEach(x=>x.remove());
-    clone.querySelectorAll(".chart-switch").forEach(x=>x.remove());
-    wrap.appendChild(clone);
-    document.body.appendChild(wrap);
-    if(!window.html2canvas||!window.jspdf)throw new Error("Bibliothèque PDF indisponible");
-    const canvas=await html2canvas(wrap,{scale:1,backgroundColor:"#FAFAF8",useCORS:true,logging:false});
-    document.body.removeChild(wrap);
-
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF("p","mm","a4");
-    const pageW=210,pageH=297,margin=8,usableW=pageW-2*margin,usableH=pageH-2*margin;
-    const pxPerMm=canvas.width/usableW;
-    const pagePx=Math.floor(usableH*pxPerMm);
-    let y=0,page=0;
-    while(y<canvas.height){
-      const h=Math.min(pagePx,canvas.height-y);
-      const part=document.createElement("canvas");part.width=canvas.width;part.height=h;
-      part.getContext("2d").drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
-      const img=part.toDataURL("image/jpeg",.92),imgH=h/pxPerMm;
-      if(page>0)pdf.addPage();
-      pdf.addImage(img,"JPEG",margin,margin,usableW,imgH);
-      y+=h;page++;
-    }
-    const d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    pdf.save(`statistiques_CMU_${stamp}.pdf`);
-    status.textContent="✓ PDF généré avec les indicateurs, diagrammes et courbes.";
-    toast("✓ Rapport statistique PDF généré");
-  }catch(e){
-    console.error("Export graphique PDF",e);
-    try{exportStatsPDFText();status.textContent="✓ PDF statistique généré en version texte (compatible mobile).";toast("✓ PDF généré en version allégée")}catch(err){console.error(err);status.textContent="Export impossible : "+(err.message||"erreur inconnue");toast("Export PDF impossible","error")};
-  }finally{
-    btn.disabled=false;btn.textContent="Exporter les statistiques en PDF";
-  }
+ const btn=document.getElementById("btn-export-stats-pdf"),status=document.getElementById("export-pdf-status");
+ btn.disabled=true;btn.textContent="Creation du rapport PDF...";status.textContent="Preparation du rapport pagine...";
+ try{
+  if(!window.jspdf?.jsPDF)throw Error("Bibliotheque PDF indisponible");
+  renderStats();
+  const pdf=new window.jspdf.jsPDF("p","mm","a4"),W=210,H=297,L=16,R=194;
+  const clean=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\x20-\x7e]/g," ").replace(/\s+/g," ").trim();
+  const now=new Date(),period=currentStatsPeriodLabel();
+  let start,end;
+  if(statPeriod==="month"){start=new Date(statMonth.getFullYear(),statMonth.getMonth(),1);end=new Date(statMonth.getFullYear(),statMonth.getMonth()+1,1)}
+  else if(statPeriod==="custom"){const x=document.getElementById("custom-start").value,z=document.getElementById("custom-end").value;if(!x||!z)throw Error("Choisissez les dates de la periode personnalisee");start=new Date(x+"T00:00:00");end=new Date(z+"T00:00:00");end.setDate(end.getDate()+1)}
+  else if(statPeriod==="day"){start=new Date(now.getFullYear(),now.getMonth(),now.getDate());end=new Date(start);end.setDate(end.getDate()+1)}
+  else if(statPeriod==="week"){start=startOfWeek(now);end=new Date(start);end.setDate(end.getDate()+7)}
+  else if(statPeriod==="semester"){start=new Date(now.getFullYear(),now.getMonth()<6?0:6,1);end=new Date(now.getFullYear(),now.getMonth()<6?6:12,1)}
+  else{start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1)}
+  const ps=passages.filter(p=>inRange(p.date,start,end));
+  const distinct=arr=>new Set(arr.map(p=>String(p.adherentId||"")).filter(Boolean)).size;
+  const totalPatients=distinct(ps),ph=ps.filter(p=>p.category==="pharmacie"),so=ps.filter(p=>p.category==="soins");
+  const genders={F:0,M:0,other:0},seen=new Set();
+  ps.forEach(p=>{const id=String(p.adherentId||"");if(!id||seen.has(id))return;seen.add(id);const g=adherents.find(a=>String(a.id)===id)?.gender;if(g==="F")genders.F++;else if(g==="M")genders.M++;else genders.other++});
+  const groups=new Map(),missing=[];
+  ph.forEach(p=>{const n=passagePharmacyName(p);if(!n){missing.push(p);return}const k=pharmacyKey(n);if(!groups.has(k))groups.set(k,{name:n,passages:[],ids:new Set()});const g=groups.get(k);g.passages.push(p);if(p.adherentId)g.ids.add(String(p.adherentId))});
+  const pharmacies=[...groups.values()].sort((x,y)=>y.passages.length-x.passages.length);
+  const prestationMap=new Map();so.forEach(p=>(p.prestations||[]).forEach(x=>{const k=clean(x);if(k)prestationMap.set(k,(prestationMap.get(k)||0)+1)}));
+  const prestations=[...prestationMap].sort((x,y)=>y[1]-x[1]);
+  const prescriberMap=new Map();ph.forEach(p=>{const n=clean(p.prescriber);if(n)prescriberMap.set(n,(prescriberMap.get(n)||0)+1)});
+  const prescribers=[...prescriberMap].sort((x,y)=>y[1]-x[1]);
+  let y=17,page=0;
+  function header(title){if(page)pdf.addPage();page++;y=17;pdf.setFillColor(15,107,92);pdf.rect(0,0,W,10,"F");pdf.setTextColor(15,80,68);pdf.setFont("helvetica","bold");pdf.setFontSize(15);pdf.text(clean(title),L,y);y+=8;pdf.setTextColor(80,90,85);pdf.setFont("helvetica","normal");pdf.setFontSize(9);pdf.text(clean("Periode : "+period),L,y);y+=10}
+  function footer(){pdf.setFont("helvetica","normal");pdf.setFontSize(8);pdf.setTextColor(110,115,115);pdf.text("Suivi Bureau CMU - Statistiques issues des passages enregistres",L,288);pdf.text("Page "+page,R,288,{align:"right"});pdf.setTextColor(30,40,40)}
+  function next(height=8){if(y+height>277){footer();header("Rapport statistique - suite")}}
+  function textLine(t,size=10,bold=false){pdf.setFont("helvetica",bold?"bold":"normal");pdf.setFontSize(size);const lines=pdf.splitTextToSize(clean(t),R-L);next(lines.length*(size*.48)+3);pdf.text(lines,L,y);y+=lines.length*(size*.48)+3}
+  function section(t){next(14);y+=3;pdf.setTextColor(15,107,92);textLine(t,12,true);pdf.setTextColor(30,40,40)}
+  function row(label,val){next(8);pdf.setFontSize(9);pdf.setFont("helvetica","normal");const labelText=clean(label);pdf.text(labelText.length>67?labelText.slice(0,64)+"...":labelText,L,y);pdf.setFont("helvetica","bold");pdf.text(clean(val),R,y,{align:"right"});y+=7}
+  function bar(label,count,max,color=[15,107,92]){next(16);pdf.setFont("helvetica","normal");pdf.setFontSize(9);pdf.text(clean(label).slice(0,59),L,y);pdf.setFont("helvetica","bold");pdf.text(String(count),R,y,{align:"right"});y+=3;pdf.setFillColor(233,239,235);pdf.roundedRect(L,y,R-L,5,2,2,"F");pdf.setFillColor(...color);if(count>0)pdf.roundedRect(L,y,Math.max(1,(R-L)*count/Math.max(1,max)),5,2,2,"F");y+=11}
+  function comment(t){next(15);pdf.setFillColor(245,248,246);const lines=pdf.splitTextToSize(clean("Analyse : "+t),R-L-10);const h=lines.length*4.5+9;next(h);pdf.roundedRect(L,y,R-L,h,2,2,"F");pdf.setFontSize(9);pdf.setFont("helvetica","normal");pdf.setTextColor(65,75,70);pdf.text(lines,L+5,y+7);y+=h+5;pdf.setTextColor(30,40,40)}
+  function pie(values){const sum=values.reduce((a,x)=>a+x.value,0);if(!sum)return;next(77);const cx=63,cy=y+34,r=30;const palette=[[15,107,92],[67,137,189],[211,154,54],[165,118,189],[160,165,162]];let angle=-Math.PI/2;values.forEach((v,i)=>{const span=2*Math.PI*v.value/sum,steps=Math.max(2,Math.ceil(span/.08));pdf.setFillColor(...palette[i%palette.length]);for(let j=0;j<steps;j++){const a=angle+span*j/steps,b=angle+span*(j+1)/steps;pdf.triangle(cx,cy,cx+r*Math.cos(a),cy+r*Math.sin(a),cx+r*Math.cos(b),cy+r*Math.sin(b),"F")}angle+=span});values.forEach((v,i)=>{pdf.setFillColor(...palette[i%palette.length]);pdf.rect(105,y+7+i*10,4,4,"F");pdf.setFontSize(9);pdf.text(clean(v.name).slice(0,22)+" : "+(100*v.value/sum).toFixed(1)+" %",112,y+10+i*10)});y+=74}
+  header("Rapport statistique - Synthese");
+  textLine("Edition du "+now.toLocaleDateString("fr-FR")+" - Bureau SEN-CSU / EPS Mbour",9);
+  section("1. Indicateurs generaux");
+  row("Patients distincts",totalPatients);row("Passages enregistres",ps.length);row("Passages soins / prestations",so.length);row("Passages pharmacie",ph.length);
+  comment("Les patients distincts sont dedoublonnes par identifiant. Un meme patient peut avoir plusieurs passages et plusieurs prestations.");
+  section("2. Repartition des passages");
+  bar("Soins / prestations",so.length,Math.max(so.length,ph.length));bar("Pharmacie",ph.length,Math.max(so.length,ph.length),[67,137,189]);
+  pie([{name:"Soins",value:so.length},{name:"Pharmacie",value:ph.length}]);
+  comment(ph.length>so.length?"Les passages pharmacie sont majoritaires sur la periode.":"Les soins et prestations representent au moins autant de passages que la pharmacie sur la periode.");
+  footer();header("Profil des patients");
+  section("3. Repartition par sexe (patients distincts)");
+  row("Femmes",genders.F);row("Hommes",genders.M);row("Non renseigne",genders.other);
+  pie([{name:"Femmes",value:genders.F},{name:"Hommes",value:genders.M},{name:"Non renseigne",value:genders.other}]);
+  comment("Cette repartition concerne les patients distincts de la periode, et non le nombre total de passages.");
+  footer();header("Soins et prestations");
+  section("4. Prestations les plus demandees");
+  if(!prestations.length)textLine("Aucune prestation renseignee pour cette periode.");
+  prestations.slice(0,12).forEach(([n,v])=>bar(n,v,prestations[0][1]));
+  comment("Un passage peut contenir plusieurs prestations. La somme des demandes par prestation peut donc depasser le nombre de passages soins.");
+  section("5. Tableau detaille des prestations");
+  prestations.forEach(([n,v])=>row(n,v));
+  footer();header("Pharmacies partenaires");
+  section("6. Patients et passages par pharmacie");
+  row("Patients distincts avec passage pharmacie",distinct(ph));row("Passages pharmacie",ph.length);
+  pharmacies.forEach(g=>{row(g.name,g.ids.size+" patients / "+g.passages.length+" passages");bar(g.name,g.passages.length,Math.max(1,...pharmacies.map(x=>x.passages.length)))});
+  if(missing.length)row("Pharmacie non renseignee",missing.length+" passages");
+  section("7. Diagramme de repartition des passages pharmacie");
+  pie([...pharmacies.map(g=>({name:g.name,value:g.passages.length})),...(missing.length?[{name:"Non renseignee",value:missing.length}]:[])]);
+  comment("Les pourcentages portent sur les passages pharmacie. Un patient frequentant plusieurs pharmacies est compte une fois dans chacune. Les noms non renseignes ne sont pas attribues arbitrairement.");
+  footer();header("Prescripteurs et observations");
+  section("8. Prescripteurs les plus frequents");
+  if(!prescribers.length)textLine("Aucun prescripteur renseigne.");
+  prescribers.slice(0,15).forEach(([n,v])=>bar(n,v,prescribers[0][1]));
+  section("9. Limites et recommandations");
+  textLine("Les statistiques reposent sur les passages saisis dans l'application. Elles ne constituent pas une preuve de delivrance effective des medicaments.");
+  textLine("Verifier les champs non renseignes et les doublons d'identite. Les donnees ne doivent pas etre corrigees automatiquement sans justificatif.");
+  textLine("Les graphiques et les tableaux sont produits directement depuis les enregistrements, sans capture d'ecran ni decoupage arbitraire.");
+  footer();
+  const stamp=now.toISOString().slice(0,10);
+  pdf.save("rapport_statistique_CMU_"+clean(period).replace(/[^a-z0-9]+/gi,"_")+"_"+stamp+".pdf");
+  status.textContent="Rapport PDF pagine genere : tableaux, diagrammes et commentaires.";
+  toast("Rapport statistique PDF genere");
+ }catch(err){console.error("Export rapport",err);status.textContent="Export impossible : "+(err.message||"erreur inconnue");toast("Export PDF impossible","error")}
+ finally{btn.disabled=false;btn.textContent="Exporter les statistiques en PDF"}
 }
 document.getElementById("btn-export-stats-pdf").onclick=exportStatsPDF;
 document.getElementById("btn-print-stats-pdf").onclick=()=>{renderStats();window.print()};
