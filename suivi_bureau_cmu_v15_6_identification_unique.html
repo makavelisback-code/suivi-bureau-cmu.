@@ -1177,17 +1177,47 @@ function refreshPharmacyDirectories(){
 }
 function renderPharmacyShares(ps){
  const box=document.getElementById("pharmacy-shares");if(!box)return;
- const all=ps.filter(p=>p.category==="pharmacie");
- const counts=new Map();let missing=0;
- all.forEach(p=>{const name=canonicalPharmacy(p.pharmacy?.pharmacie||"");if(!name){missing++;return}const key=pharmacyKey(name);const old=counts.get(key);counts.set(key,{name,count:(old?.count||0)+1})});
- const named=all.length-missing;
- const lines=[...counts.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"fr"));
+ const all=ps.filter(p=>p.category==="pharmacie"),groups=new Map();
+ const defaults=["Salve Regina","Pape Cheikh Diagne","Khadidiatou"];
+ defaults.forEach(name=>groups.set(pharmacyKey(name),{name,ids:new Set(),count:0}));
+ let unknown=0;const unknownIds=new Set();
+ all.forEach(p=>{
+  const name=canonicalPharmacy(p.pharmacy?.pharmacie||"");
+  if(!name){unknown++;if(p.adherentId)unknownIds.add(String(p.adherentId));return}
+  const key=pharmacyKey(name);
+  if(!groups.has(key))groups.set(key,{name,ids:new Set(),count:0});
+  const g=groups.get(key);g.count++;if(p.adherentId)g.ids.add(String(p.adherentId));
+ });
+ const items=[...groups.values()].sort((a,b)=>b.ids.size-a.ids.size||a.name.localeCompare(b.name,"fr"));
+ const totalPatients=new Set(all.map(p=>String(p.adherentId||"")).filter(Boolean)).size;
+ const total=all.length;
  box.replaceChildren();
- const summary=document.createElement("p");summary.className="meta";summary.textContent=all.length+" passage(s) pharmacie sur la période ; "+named+" avec pharmacie renseignée ; "+missing+" non renseigné(s).";box.appendChild(summary);
- if(!all.length){const p=document.createElement("p");p.textContent="Aucun passage pharmacie sur cette période.";box.appendChild(p);return}
- lines.forEach(x=>{const p=document.createElement("div");p.style.margin="12px 0";const pct=100*x.count/all.length;const head=document.createElement("div");head.textContent=x.name+" — "+x.count+" passage(s), "+pct.toFixed(1)+" %";const track=document.createElement("div");track.style.cssText="height:9px;background:#E8EFEA;border-radius:8px;overflow:hidden;margin-top:4px";const bar=document.createElement("div");bar.style.cssText="height:100%;background:#0F6B5C;width:"+pct+"%";track.appendChild(bar);p.append(head,track);box.appendChild(p)});
- if(missing){const p=document.createElement("p");p.textContent="Pharmacie non renseignée : "+missing+" passage(s), "+(100*missing/all.length).toFixed(1)+" %.";box.appendChild(p)}
- const note=document.createElement("p");note.className="meta";note.textContent="Pourcentage calculé sur les passages pharmacie enregistrés (pas sur les visites réelles en officine). Les anciens passages sans pharmacie ne sont pas attribués automatiquement.";box.appendChild(note);
+ const title=document.createElement("p");title.style.cssText="font-weight:700;margin:10px 0";title.textContent=totalPatients+" patients distincts · "+total+" passages pharmacie";box.appendChild(title);
+ const colors=["#0F6B5C","#4389BD","#D39A36","#A576BD","#D76F61","#738394"];
+ const chartTitle=document.createElement("h4");chartTitle.textContent="Diagramme comparatif — patients par pharmacie";chartTitle.style.margin="18px 0 10px";box.appendChild(chartTitle);
+ const max=Math.max(1,...items.map(x=>x.ids.size));
+ items.forEach((x,i)=>{
+  const card=document.createElement("div");card.style.cssText="margin:10px 0;padding:10px;border:1px solid #DCE3DE;border-radius:10px";
+  const heading=document.createElement("div");heading.style.cssText="display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:13px";
+  const label=document.createElement("span");label.textContent=x.name;
+  const value=document.createElement("span");value.textContent=x.ids.size+" patient(s)";
+  heading.append(label,value);
+  const track=document.createElement("div");track.style.cssText="height:16px;background:#E8EFEA;border-radius:7px;overflow:hidden;margin-top:8px";
+  const bar=document.createElement("div");bar.style.cssText="height:100%;width:"+(100*x.ids.size/max)+"%;background:"+colors[i%colors.length];
+  track.appendChild(bar);
+  const detail=document.createElement("div");detail.style.cssText="font-size:12px;color:#56645D;margin-top:6px";detail.textContent=x.count+" passage(s) · "+(total?100*x.count/total:0).toFixed(1)+" % du total";
+  card.append(heading,track,detail);box.appendChild(card);
+ });
+ if(unknown){const p=document.createElement("p");p.style.cssText="font-weight:700;color:#9B341D";p.textContent="Pharmacie non renseignée : "+unknownIds.size+" patient(s), "+unknown+" passage(s)";box.appendChild(p)}
+ const pieTitle=document.createElement("h4");pieTitle.textContent="Diagramme circulaire — part des passages";pieTitle.style.margin="20px 0 10px";box.appendChild(pieTitle);
+ const segments=items.filter(x=>x.count>0).map((x,i)=>({name:x.name,count:x.count,color:colors[i%colors.length]}));
+ if(unknown)segments.push({name:"Non renseignée",count:unknown,color:"#A6ADA9"});
+ if(total){
+  let angle=0;const stops=segments.map(x=>{const start=angle;angle+=x.count/total*100;return x.color+" "+start.toFixed(3)+"% "+angle.toFixed(3)+"%"}).join(",");
+  const pie=document.createElement("div");pie.style.cssText="width:min(220px,75vw);aspect-ratio:1;border-radius:50%;margin:12px auto;background:conic-gradient("+stops+")";pie.setAttribute("role","img");pie.setAttribute("aria-label","Répartition des passages par pharmacie");box.appendChild(pie);
+  segments.forEach(x=>{const line=document.createElement("div");line.style.cssText="display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px";const dot=document.createElement("span");dot.style.cssText="width:12px;height:12px;display:inline-block;border-radius:3px;background:"+x.color;const text=document.createElement("span");text.textContent=x.name+" : "+x.count+" passage(s) ("+(100*x.count/total).toFixed(1)+" %)";line.append(dot,text);box.appendChild(line)})
+ }else{const empty=document.createElement("p");empty.textContent="Aucun passage pharmacie sur cette période.";box.appendChild(empty)}
+ const note=document.createElement("p");note.className="meta";note.textContent="Les patients sont dédupliqués dans chaque pharmacie. Un même patient peut apparaître dans plusieurs pharmacies. Le diagramme circulaire représente les passages enregistrés, pas les retraits effectifs de médicaments.";box.appendChild(note);
 }
 function renderStats(){
   const now=new Date();
