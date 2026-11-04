@@ -1504,7 +1504,7 @@ setTimeout(()=>{try{initCmuSuggestions()}catch(e){console.warn("Suggestions CMU 
     <input id="cloud-email" type="email" placeholder="Adresse e-mail">
     <input id="cloud-pass" type="password" placeholder="Mot de passe (6 caractères minimum)">
     <button id="cloud-login">Se connecter</button>
-    <button id="cloud-signup" class="cloud-alt">Créer mon compte agent</button>
+    <button id="cloud-signup" class="cloud-alt" style="display:none">Créer mon compte agent</button><button id="cloud-reset" class="cloud-alt" type="button">Recevoir un lien pour définir mon mot de passe</button><div id="cloud-set-password" style="display:none"><p>Définir votre mot de passe</p><input id="cloud-new-password" type="password" autocomplete="new-password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)"><button id="cloud-save-password" type="button">Enregistrer mon mot de passe</button></div>
     <div id="cloud-msg"></div>
   </div>
 </div>
@@ -1629,10 +1629,17 @@ deletePassage=async function(id){
   passages=passages.filter(x=>String(x.id)!==String(id));const pp=pendingSet(PENDING_P_KEY);pp.delete(String(id));savePending(PENDING_P_KEY,pp);safeLocalJSON("cmu_passages",passages);render();cloudState("Passage supprimé ✓");toast("✓ Passage supprimé")
  }catch(e){console.error(e);cloudState("Suppression impossible — passage conservé");toast("Suppression non effectuée","error")}
 };
+const cmuAuthLinkType=new URLSearchParams(location.hash.slice(1)).get("type")||new URLSearchParams(location.search).get("type");
+let cmuPasswordSetupPending=cmuAuthLinkType==="invite"||cmuAuthLinkType==="recovery";
+function showCmuPasswordSetup(){document.getElementById("cloud-auth").style.display="flex";document.getElementById("cloud-set-password").style.display="block";document.getElementById("cloud-login").style.display="none";document.getElementById("cloud-reset").style.display="none";cloudMsg("Choisissez votre nouveau mot de passe pour activer votre accès.")}
+document.getElementById("cloud-reset").onclick=async()=>{const email=document.getElementById("cloud-email").value.trim();if(!email)return cloudMsg("Indiquez votre adresse e-mail.");const {error}=await cloud.auth.resetPasswordForEmail(email,{redirectTo:"https://makavelisback-code.github.io/suivi-bureau-cmu./"});cloudMsg(error?error.message:"Si le compte existe, un lien de définition du mot de passe a été envoyé.")};
+document.getElementById("cloud-save-password").onclick=async()=>{const password=document.getElementById("cloud-new-password").value;if(password.length<8)return cloudMsg("Le mot de passe doit contenir au moins 8 caractères.");const {error}=await cloud.auth.updateUser({password});if(error)return cloudMsg(error.message);cmuPasswordSetupPending=false;history.replaceState(null,"",location.pathname);cloudMsg("Mot de passe enregistré. Connexion en cours…");const {data}=await cloud.auth.getSession();if(data.session)await cloudStart(data.session);else location.reload()};
+cloud.auth.onAuthStateChange((event,session)=>{if(event==="PASSWORD_RECOVERY"||(event==="SIGNED_IN"&&cmuPasswordSetupPending)){cmuPasswordSetupPending=true;showCmuPasswordSetup()}});
+if(cmuPasswordSetupPending)showCmuPasswordSetup();
 document.getElementById("cloud-login").onclick=async()=>{cloudMsg("Connexion…");const {data,error}=await cloud.auth.signInWithPassword({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);cloudStart(data.session)};
 document.getElementById("cloud-signup").style.display="none";document.getElementById("cloud-signup").onclick=async()=>{cloudMsg("Création…");const {data,error}=await cloud.auth.signUp({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);if(!data.session)return cloudMsg("Compte créé. Vérifie ton e-mail puis connecte-toi.");cloudStart(data.session)};
 document.getElementById("link-logout").onclick=async e=>{e.preventDefault();await cloud.auth.signOut();sessionStorage.removeItem("cmu_agent");location.reload()};
-cloud.auth.getSession().then(({data})=>{if(data.session)cloudStart(data.session)});
+cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPending)cloudStart(data.session)});
 </script>
 
 </body></html>
