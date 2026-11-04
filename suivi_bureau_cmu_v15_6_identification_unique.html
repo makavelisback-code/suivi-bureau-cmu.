@@ -1530,7 +1530,7 @@ function mergeById(remote,local,pending){
  return [...m.values()]
 }
 async function cloudPush(forceAll=false){
- if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
+ if(!activeEstablishmentId)return;if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
  try{
   const {data:{user}}=await cloud.auth.getUser(); if(!user)return;
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
@@ -1555,6 +1555,7 @@ async function cloudPush(forceAll=false){
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function fetchAllCloudRows(table){
+ if(!activeEstablishmentId)throw Error("Établissement non sélectionné");
  const rows=[],pageSize=500;
  for(let offset=0;;offset+=pageSize){
   const result=await cloud.from(table).select("*").eq("establishment_id",activeEstablishmentId).order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
@@ -1566,6 +1567,7 @@ async function fetchAllCloudRows(table){
  return rows;
 }
 async function cloudPull(){
+ if(!activeEstablishmentId)return;
  if(cloudBusy){cloudPullQueued=true;return} cloudBusy=true;
  try{
   const old=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
@@ -1603,7 +1605,7 @@ deleteAdherent=async function(id){
  if(!confirm(msg))return;
  try{
   cloudState("Suppression en ligne…");
-  const r=await cloud.from("adherents").delete().eq("legacy_id",String(id));if(r.error)throw r.error;
+  const r=await cloud.from("adherents").delete().eq("establishment_id",activeEstablishmentId).eq("legacy_id",String(id));if(r.error)throw r.error;
   adherents=adherents.filter(x=>String(x.id)!==String(id));passages=passages.filter(p=>String(p.adherentId)!==String(id));
   const pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);pa.delete(String(id));linkedPassages.forEach(p=>pp.delete(String(p.id)));savePending(PENDING_A_KEY,pa);savePending(PENDING_P_KEY,pp);
   safeLocalJSON("cmu_adherents",adherents,lightAdherents);safeLocalJSON("cmu_passages",passages);render();cloudState("Supprimé de la base ✓");toast("Adhérent supprimé")
@@ -1620,7 +1622,7 @@ deletePassage=async function(id){
  }catch(e){console.error(e);cloudState("Suppression impossible — passage conservé");toast("Suppression non effectuée","error")}
 };
 document.getElementById("cloud-login").onclick=async()=>{cloudMsg("Connexion…");const {data,error}=await cloud.auth.signInWithPassword({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);cloudStart(data.session)};
-document.getElementById("cloud-signup").onclick=async()=>{cloudMsg("Création…");const {data,error}=await cloud.auth.signUp({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);if(!data.session)return cloudMsg("Compte créé. Vérifie ton e-mail puis connecte-toi.");cloudStart(data.session)};
+document.getElementById("cloud-signup").style.display="none";document.getElementById("cloud-signup").onclick=async()=>{cloudMsg("Création…");const {data,error}=await cloud.auth.signUp({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);if(!data.session)return cloudMsg("Compte créé. Vérifie ton e-mail puis connecte-toi.");cloudStart(data.session)};
 document.getElementById("link-logout").onclick=async e=>{e.preventDefault();await cloud.auth.signOut();sessionStorage.removeItem("cmu_agent");location.reload()};
 cloud.auth.getSession().then(({data})=>{if(data.session)cloudStart(data.session)});
 </script>
