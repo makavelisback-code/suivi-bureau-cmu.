@@ -1588,7 +1588,7 @@ async function cloudStart(session){
  activeEstablishmentId=profile.establishment_id;
  if(profile.is_general_admin){const choice=prompt("Centre : 1 = Mbour, 2 = Thiès","1");if(choice===null)return;if(choice.trim()==="2")activeEstablishmentId="68868eed-6abb-4fd8-bcef-1e08e781c1c8";}
  const scope=session.user.id+":"+activeEstablishmentId;
- if(localStorage.getItem("cmu_tenant_scope")!==scope){adherents=[];passages=[];for(const key of ["cmu_adherents","cmu_passages",PENDING_A_KEY,PENDING_P_KEY,"cmu_prescribers_extra"])localStorage.removeItem(key);localStorage.setItem("cmu_tenant_scope",scope)}
+ if(localStorage.getItem("cmu_tenant_scope")!==scope){const previous=localStorage.getItem("cmu_tenant_scope")||"legacy";for(const key of ["cmu_adherents","cmu_passages",PENDING_A_KEY,PENDING_P_KEY,"cmu_prescribers_extra"]){const old=localStorage.getItem(key);if(old!==null)localStorage.setItem("cmu_backup:"+previous+":"+key,old);localStorage.removeItem(key);const saved=localStorage.getItem("cmu_backup:"+scope+":"+key);if(saved!==null)localStorage.setItem(key,saved)}adherents=JSON.parse(localStorage.getItem("cmu_adherents")||"[]");passages=JSON.parse(localStorage.getItem("cmu_passages")||"[]");localStorage.setItem("cmu_tenant_scope",scope)}
  document.getElementById("cloud-auth").style.display="none";loginUI(session.user.email);
  const countRes=await cloud.from("adherents").select("*",{count:"exact",head:true}).eq("establishment_id",activeEstablishmentId);
  if(countRes.error){cloudState(cloudErrorText("Erreur contrôle Supabase",countRes.error),15000);return}
