@@ -528,6 +528,7 @@ function savePassage(){
   const currentPhoto=document.getElementById("passage-photo-box").dataset.photo||"";if(currentPhoto)a.photo=currentPhoto;
   let pharmacy=null;
   if(category==="pharmacie"){
+    if(!validatePharmacyForCentre())return;
     const meds=getMedications(),total=meds.reduce((z,x)=>z+x.quantite*x.prixUnitaire,0),rate=insuranceType==="CEC"?cecRate/100:pharmacyCircuit==="public"?.8:.5;
     pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:canonicalPharmacy(f("bon-pharmacie")),structureSante:(activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily":"EPS1 MBOUR"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
   }
@@ -568,7 +569,7 @@ const CMU_DEFAULT_SUGGESTIONS={
 function loadSuggestions(){let s={};try{s=JSON.parse(localStorage.getItem(CMU_SUGGEST_KEY)||"{}")}catch(e){};let o={};Object.keys(CMU_DEFAULT_SUGGESTIONS).forEach(k=>o[k]=[...new Set([...(CMU_DEFAULT_SUGGESTIONS[k]||[]),...(s[k]||[])])]);return o}
 function rememberSuggestion(k,v){v=String(v||"").trim();if(!v)return;let d={};try{d=JSON.parse(localStorage.getItem(CMU_SUGGEST_KEY)||"{}")}catch(e){};d[k]=d[k]||[];if(!d[k].some(x=>normLearn(x)===normLearn(v)))d[k].unshift(v);d[k]=d[k].slice(0,100);localStorage.setItem(CMU_SUGGEST_KEY,JSON.stringify(d))}
 function enableSuggestions(id,k){const input=document.getElementById(id);if(!input||input.dataset.suggestReady)return;input.dataset.suggestReady="1";const w=document.createElement("div");w.className="suggest-wrap";input.parentNode.insertBefore(w,input);w.appendChild(input);const l=document.createElement("div");l.className="suggest-list";w.appendChild(l);const draw=()=>{const q=normLearn(input.value),d=loadSuggestions();let a=[...(d[k]||[]),...(d.words||[])];a=[...new Set(a)].filter(v=>!q||normLearn(v).includes(q)||q.includes(normLearn(v))).slice(0,8);l.innerHTML=a.map(v=>`<div class="suggest-item">${esc(v)}</div>`).join("");l.classList.toggle("show",!!a.length);[...l.children].forEach((e,i)=>e.onmousedown=x=>{x.preventDefault();input.value=a[i];l.classList.remove("show");input.dispatchEvent(new Event("input",{bubbles:true}))})};input.addEventListener("input",draw);input.addEventListener("focus",draw);input.addEventListener("blur",()=>setTimeout(()=>l.classList.remove("show"),150))}
-function initCmuSuggestions(){[["f-prescriber","prescriber"],["bon-pharmacie","pharmacie"],["ocr-r-pharmacie","pharmacie"],["ocr-r-beneficiaire","beneficiary"],["ocr-r-prescriber","prescriber"]].forEach(x=>enableSuggestions(x[0],x[1]))}
+function initCmuSuggestions(){[["f-prescriber","prescriber"],["ocr-r-beneficiaire","beneficiary"],["ocr-r-prescriber","prescriber"]].forEach(x=>enableSuggestions(x[0],x[1]))}
 
 const OCR_LEARNING_KEY="cmu_ocr_learning_v1";
 function loadOcrLearning(){
@@ -1228,18 +1229,25 @@ function canonicalPharmacy(s){
  return v;
 }
 function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacyName||p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||"")}
+function validatePharmacyForCentre(){
+ const input=document.getElementById("bon-pharmacie");if(!input)return true;
+ const name=canonicalPharmacy(input.value);
+ if(activeEstablishmentId!=="68868eed-6abb-4fd8-bcef-1e08e781c1c8"&&name&&!CMU_PHARMACIES.includes(name)){toast("Choisissez une pharmacie partenaire de Mbour.","error");input.focus();return false}
+ input.value=name;return true;
+}
 function refreshPharmacyDirectories(){
  const pharmacies=new Map((activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?[]:CMU_PHARMACIES).map(x=>[pharmacyKey(x),x]));
  const prescribers=new Map();
  passages.forEach(p=>{
   const pharmacy=passagePharmacyName(p);
-  if(pharmacy)pharmacies.set(pharmacyKey(pharmacy),pharmacy);
+  if(pharmacy&&activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8")pharmacies.set(pharmacyKey(pharmacy),pharmacy);
   const dr=cleanDirectoryName(p.prescriber);
   if(dr)prescribers.set(pharmacyKey(dr),dr);
  });
  const saved=JSON.parse(localStorage.getItem("cmu_prescribers_extra")||"[]");
  saved.forEach(x=>{const v=cleanDirectoryName(x);if(v)prescribers.set(pharmacyKey(v),v)});
  const pList=document.getElementById("cmu-pharmacies-list");
+ const pharmacyInput=document.getElementById("bon-pharmacie");if(pharmacyInput){pharmacyInput.placeholder=activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Saisir la pharmacie partenaire de Thiès":"Choisir une pharmacie partenaire de Mbour";pharmacyInput.setAttribute("autocomplete","off")}
  pList.replaceChildren(...[...pharmacies.values()].sort((a,b)=>a.localeCompare(b,"fr")).map(v=>{const o=document.createElement("option");o.value=v;return o}));
  const drList=document.getElementById("cmu-prescribers-list");
  drList.replaceChildren(...[...prescribers.values()].sort((a,b)=>a.localeCompare(b,"fr")).map(v=>{const o=document.createElement("option");o.value=v;return o}));
