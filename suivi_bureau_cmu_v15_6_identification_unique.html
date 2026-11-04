@@ -150,7 +150,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
     <div><p class="label">N° du bon</p><input id="bon-numero" type="text" placeholder="N°"></div>
     <div><p class="label">Date d’émission</p><input id="bon-date" type="date"></div>
     <div class="full"><p class="label">Pharmacie</p><input id="bon-pharmacie" type="text" list="cmu-pharmacies-list" placeholder="Nom de la pharmacie"><datalist id="cmu-pharmacies-list"></datalist><div id="pharmacy-quick-picks" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
-    <div class="full"><p class="label">Structure de santé</p><input id="bon-structure" type="text" placeholder="Structure prescriptrice"></div>
+    <div class="full"><p class="label">Structure de santé</p><select id="bon-structure" required><option value="">Sélectionner une structure</option><option value="EPS1 MBOUR">EPS1 MBOUR</option><option value="Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily">Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily</option></select></div>
     <div><p class="label">Âge</p><input id="bon-age" type="number" min="0" max="130" placeholder="Âge"></div>
     <div><p class="label">Taux de prise en charge</p><input id="bon-pec" type="text" value="" readonly></div>
   </div>
@@ -471,7 +471,7 @@ function addMedicationRow(data={}){const box=document.getElementById("medicament
 function getMedications(){return [...document.querySelectorAll("#medicaments-list .med-row")].map(r=>({designation:r.querySelector(".med-name").value.trim(),quantite:Number(r.querySelector(".med-qty").value||0),prixUnitaire:Number(r.querySelector(".med-price").value||0)})).filter(x=>x.designation||x.prixUnitaire)}
 function calcBon(){let total=0;document.querySelectorAll("#medicaments-list .med-row").forEach(r=>{const q=Number(r.querySelector(".med-qty").value||0),p=Number(r.querySelector(".med-price").value||0),t=q*p;total+=t;r.querySelector(".med-total").textContent=t.toLocaleString("fr-FR")});const rate=pharmacyCircuit==="public"?.8:pharmacyCircuit==="officine"?.5:0;document.getElementById("bon-total").textContent=total.toLocaleString("fr-FR")+" FCFA";document.getElementById("bon-patient").textContent=(total*(1-rate)).toLocaleString("fr-FR")+" FCFA";document.getElementById("bon-tiers").textContent=(total*rate).toLocaleString("fr-FR")+" FCFA"}
 document.getElementById("btn-add-med").onclick=()=>{addMedicationRow();toast("✓ Ligne médicament ajoutée")};
-function resetPharmaForm(){pharmacyCircuit=null;["circuit-public","circuit-officine"].forEach(id=>document.getElementById(id).classList.remove("active-pharma"));["bon-numero","bon-pharmacie","bon-structure","bon-age","bon-pec"].forEach(id=>document.getElementById(id).value="");document.getElementById("bon-date").value=today();document.getElementById("medicaments-list").innerHTML="";addMedicationRow();calcBon()}
+function resetPharmaForm(){pharmacyCircuit=null;["circuit-public","circuit-officine"].forEach(id=>document.getElementById(id).classList.remove("active-pharma"));["bon-numero","bon-pharmacie","bon-structure","bon-age","bon-pec"].forEach(id=>document.getElementById(id).value="");document.getElementById("bon-date").value=today();document.getElementById("bon-structure").value=activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily":"EPS1 MBOUR";document.getElementById("medicaments-list").innerHTML="";addMedicationRow();calcBon()}
 
 function monthKey(date){const d=new Date(date);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 function normNumero(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
@@ -528,8 +528,9 @@ function savePassage(){
   const currentPhoto=document.getElementById("passage-photo-box").dataset.photo||"";if(currentPhoto)a.photo=currentPhoto;
   let pharmacy=null;
   if(category==="pharmacie"){
+    if(!validatePharmacyForCentre())return;
     const meds=getMedications(),total=meds.reduce((z,x)=>z+x.quantite*x.prixUnitaire,0),rate=insuranceType==="CEC"?cecRate/100:pharmacyCircuit==="public"?.8:.5;
-    pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:canonicalPharmacy(f("bon-pharmacie")),structureSante:f("bon-structure"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
+    pharmacy={bonNumero:f("bon-numero"),dateEmission:document.getElementById("bon-date").value||today(),pharmacie:canonicalPharmacy(f("bon-pharmacie")),structureSante:(activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily":"EPS1 MBOUR"),age:Number(document.getElementById("bon-age").value||0)||null,circuit:pharmacyCircuit,tauxPEC:Math.round(rate*100),medicaments:meds,totalGeneral:total,montantPatient:Math.round(total*(1-rate)),montantTiersPayant:Math.round(total*rate)};
   }
   passages.push({id:Date.now().toString(36),adherentId:a.id,date:new Date().toISOString(),agent:currentAgent,category,gender:gender||a.gender||"",insuranceType:insuranceType||a.insuranceType||"",coverageRate:cecRate,careRegime:document.getElementById("care-regime").value,careLevel:document.getElementById("care-level").value,prescriber:category==="pharmacie"?prescriber:"",pharmacy,prestations:category==="soins"?[...new Set([...selected])]:[],complementaryActs:category==="soins"?[...complementarySelected]:[]});if(!save()){toast("⚠️ Passage non sauvegardé. Libérez de l’espace sans effacer les données du site.","error");return}
   ["f-prenom","f-nom","f-numero","f-telephone","f-prescriber"].forEach(x=>document.getElementById(x).value="");selected.clear();complementarySelected.clear();gender=null;insuranceType=null;document.getElementById("cec-rate").value="";document.getElementById("cec-rate-box").style.display="none";document.querySelectorAll("#gender-f,#gender-m").forEach(x=>x.classList.remove("active-soins","active-pharma"));document.querySelectorAll("#insurance-classique,#insurance-sesame,#insurance-cec").forEach(x=>x.classList.remove("active-insurance"));document.querySelectorAll(".cb-chip").forEach(x=>x.classList.remove("selected"));resetPharmaForm();selectCat(null);document.getElementById("passage-photo-box").textContent="Aucune photo";document.getElementById("passage-photo-box").dataset.photo="";document.getElementById("ocr-status").textContent="";document.getElementById("cmu-doc-status").textContent="";document.getElementById("cmu-doc-result").classList.remove("show");document.getElementById("cmu-doc-result").innerHTML="";document.getElementById("guarantee-doc-form")?.classList.remove("show");document.getElementById("bon-doc-form")?.classList.remove("show");document.getElementById("monthly-status").style.display="none";toast("✓ Passage enregistré avec succès");render()
@@ -568,7 +569,7 @@ const CMU_DEFAULT_SUGGESTIONS={
 function loadSuggestions(){let s={};try{s=JSON.parse(localStorage.getItem(CMU_SUGGEST_KEY)||"{}")}catch(e){};let o={};Object.keys(CMU_DEFAULT_SUGGESTIONS).forEach(k=>o[k]=[...new Set([...(CMU_DEFAULT_SUGGESTIONS[k]||[]),...(s[k]||[])])]);return o}
 function rememberSuggestion(k,v){v=String(v||"").trim();if(!v)return;let d={};try{d=JSON.parse(localStorage.getItem(CMU_SUGGEST_KEY)||"{}")}catch(e){};d[k]=d[k]||[];if(!d[k].some(x=>normLearn(x)===normLearn(v)))d[k].unshift(v);d[k]=d[k].slice(0,100);localStorage.setItem(CMU_SUGGEST_KEY,JSON.stringify(d))}
 function enableSuggestions(id,k){const input=document.getElementById(id);if(!input||input.dataset.suggestReady)return;input.dataset.suggestReady="1";const w=document.createElement("div");w.className="suggest-wrap";input.parentNode.insertBefore(w,input);w.appendChild(input);const l=document.createElement("div");l.className="suggest-list";w.appendChild(l);const draw=()=>{const q=normLearn(input.value),d=loadSuggestions();let a=[...(d[k]||[]),...(d.words||[])];a=[...new Set(a)].filter(v=>!q||normLearn(v).includes(q)||q.includes(normLearn(v))).slice(0,8);l.innerHTML=a.map(v=>`<div class="suggest-item">${esc(v)}</div>`).join("");l.classList.toggle("show",!!a.length);[...l.children].forEach((e,i)=>e.onmousedown=x=>{x.preventDefault();input.value=a[i];l.classList.remove("show");input.dispatchEvent(new Event("input",{bubbles:true}))})};input.addEventListener("input",draw);input.addEventListener("focus",draw);input.addEventListener("blur",()=>setTimeout(()=>l.classList.remove("show"),150))}
-function initCmuSuggestions(){[["f-prescriber","prescriber"],["bon-pharmacie","pharmacie"],["bon-structure","structure"],["ocr-r-pharmacie","pharmacie"],["ocr-r-beneficiaire","beneficiary"],["ocr-r-structure","structure"],["ocr-r-prescriber","prescriber"]].forEach(x=>enableSuggestions(x[0],x[1]))}
+function initCmuSuggestions(){[["f-prescriber","prescriber"],["ocr-r-beneficiaire","beneficiary"],["ocr-r-prescriber","prescriber"]].forEach(x=>enableSuggestions(x[0],x[1]))}
 
 const OCR_LEARNING_KEY="cmu_ocr_learning_v1";
 function loadOcrLearning(){
@@ -690,7 +691,7 @@ function applyCmuDocument(fields){
     const bf=document.getElementById("bon-doc-form"),gf=document.getElementById("guarantee-doc-form");if(bf)bf.classList.add("show");if(gf)gf.classList.remove("show");
     if(fields.prescriber)document.getElementById("f-prescriber").value=fields.prescriber;
     if(fields.pharmacie)document.getElementById("bon-pharmacie").value=fields.pharmacie;
-    if(fields.structure)document.getElementById("bon-structure").value=fields.structure;
+    document.getElementById("bon-structure").value=activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily":"EPS1 MBOUR";
     if(fields.age)document.getElementById("bon-age").value=fields.age;
     if(fields.bonNumero)document.getElementById("bon-numero").value=fields.bonNumero;
     if(fields.dateEmission){
@@ -1228,23 +1229,30 @@ function canonicalPharmacy(s){
  return v;
 }
 function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacyName||p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||"")}
+function validatePharmacyForCentre(){
+ const input=document.getElementById("bon-pharmacie");if(!input)return true;
+ const name=canonicalPharmacy(input.value);
+ if(activeEstablishmentId!=="68868eed-6abb-4fd8-bcef-1e08e781c1c8"&&name&&!CMU_PHARMACIES.includes(name)){toast("Choisissez une pharmacie partenaire de Mbour.","error");input.focus();return false}
+ input.value=name;return true;
+}
 function refreshPharmacyDirectories(){
- const pharmacies=new Map(CMU_PHARMACIES.map(x=>[pharmacyKey(x),x]));
+ const pharmacies=new Map((activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?[]:CMU_PHARMACIES).map(x=>[pharmacyKey(x),x]));
  const prescribers=new Map();
  passages.forEach(p=>{
   const pharmacy=passagePharmacyName(p);
-  if(pharmacy)pharmacies.set(pharmacyKey(pharmacy),pharmacy);
+  if(pharmacy&&activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8")pharmacies.set(pharmacyKey(pharmacy),pharmacy);
   const dr=cleanDirectoryName(p.prescriber);
   if(dr)prescribers.set(pharmacyKey(dr),dr);
  });
  const saved=JSON.parse(localStorage.getItem("cmu_prescribers_extra")||"[]");
  saved.forEach(x=>{const v=cleanDirectoryName(x);if(v)prescribers.set(pharmacyKey(v),v)});
  const pList=document.getElementById("cmu-pharmacies-list");
+ const pharmacyInput=document.getElementById("bon-pharmacie");if(pharmacyInput){pharmacyInput.placeholder=activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?"Saisir la pharmacie partenaire de Thiès":"Choisir une pharmacie partenaire de Mbour";pharmacyInput.setAttribute("autocomplete","off")}
  pList.replaceChildren(...[...pharmacies.values()].sort((a,b)=>a.localeCompare(b,"fr")).map(v=>{const o=document.createElement("option");o.value=v;return o}));
  const drList=document.getElementById("cmu-prescribers-list");
  drList.replaceChildren(...[...prescribers.values()].sort((a,b)=>a.localeCompare(b,"fr")).map(v=>{const o=document.createElement("option");o.value=v;return o}));
  const quick=document.getElementById("pharmacy-quick-picks");
- quick.replaceChildren(...CMU_PHARMACIES.map(v=>{const b=document.createElement("button");b.type="button";b.className="btn-small";b.textContent=v;b.onclick=()=>{document.getElementById("bon-pharmacie").value=v};return b}));
+ quick.replaceChildren(...(activeEstablishmentId==="68868eed-6abb-4fd8-bcef-1e08e781c1c8"?[]:CMU_PHARMACIES).map(v=>{const b=document.createElement("button");b.type="button";b.className="btn-small";b.textContent=v;b.onclick=()=>{document.getElementById("bon-pharmacie").value=v};return b}));
 }
 function renderPharmacyShares(ps){
  const box=document.getElementById("pharmacy-shares");if(!box)return;
@@ -1504,7 +1512,7 @@ setTimeout(()=>{try{initCmuSuggestions()}catch(e){console.warn("Suggestions CMU 
 const CMU_SUPABASE_URL="https://kboseofjxxioqvqdqdqf.supabase.co";
 const CMU_SUPABASE_KEY="sb_publishable_1cgBKnGkqfCqkll2Y_aEeg__oNdfo-X";
 const cloud=supabase.createClient(CMU_SUPABASE_URL,CMU_SUPABASE_KEY);
-let cloudBusy=false,cloudSubscribed=false,cloudPushQueued=false,cloudPullQueued=false;
+let cloudBusy=false,cloudSubscribed=false,cloudPushQueued=false,cloudPullQueued=false,activeEstablishmentId=null;
 const PENDING_A_KEY="cmu_pending_adherents_v15",PENDING_P_KEY="cmu_pending_passages_v15";
 const cloudMsg=x=>document.getElementById("cloud-msg").textContent=x;
 function cloudState(x,ms=3500){const e=document.getElementById("cloud-state");e.textContent=x;e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",ms)}
@@ -1530,20 +1538,20 @@ function mergeById(remote,local,pending){
  return [...m.values()]
 }
 async function cloudPush(forceAll=false){
- if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
+ if(!activeEstablishmentId)return;if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
  try{
   const {data:{user}}=await cloud.auth.getUser(); if(!user)return;
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const adherentsToPush=forceAll?s.a:s.a.filter(x=>pa.has(String(x.id)));
   if(adherentsToPush.length){
-   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id}));
+   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
    const r=await cloud.from("adherents").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  const ar=await cloud.from("adherents").select("id,legacy_id"); if(ar.error)throw ar.error;
+  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",activeEstablishmentId); if(ar.error)throw ar.error;
   const ids=new Map(ar.data.map(x=>[String(x.legacy_id),x.id]));
   const passagesToPush=(forceAll?s.p:s.p.filter(x=>pp.has(String(x.id)))).filter(x=>ids.has(String(x.adherentId)));
   if(passagesToPush.length){
-   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,created_at:x.date||new Date().toISOString()}));
+   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:activeEstablishmentId,created_at:x.date||new Date().toISOString()}));
    const r=await cloud.from("passages").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
   if(forceAll){pa.clear();pp.clear()}else{
@@ -1555,9 +1563,10 @@ async function cloudPush(forceAll=false){
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function fetchAllCloudRows(table){
+ if(!activeEstablishmentId)throw Error("Établissement non sélectionné");
  const rows=[],pageSize=500;
  for(let offset=0;;offset+=pageSize){
-  const result=await cloud.from(table).select("*").order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
+  const result=await cloud.from(table).select("*").eq("establishment_id",activeEstablishmentId).order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
   if(result.error)throw result.error;
   const batch=result.data||[];
   rows.push(...batch);
@@ -1566,6 +1575,7 @@ async function fetchAllCloudRows(table){
  return rows;
 }
 async function cloudPull(){
+ if(!activeEstablishmentId)return;
  if(cloudBusy){cloudPullQueued=true;return} cloudBusy=true;
  try{
   const old=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
@@ -1583,10 +1593,16 @@ async function cloudPull(){
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function cloudStart(session){
+ const {data:profile,error}=await cloud.from("profiles").select("establishment_id,is_general_admin").eq("id",session.user.id).single();
+ if(error||!profile?.establishment_id){cloudMsg("Compte sans établissement autorisé.");return}
+ activeEstablishmentId=profile.establishment_id;
+ if(profile.is_general_admin){const choice=prompt("Centre : 1 = Mbour, 2 = Thiès","1");if(choice===null)return;if(choice.trim()==="2")activeEstablishmentId="68868eed-6abb-4fd8-bcef-1e08e781c1c8";}
+ const scope=session.user.id+":"+activeEstablishmentId;
+ if(localStorage.getItem("cmu_tenant_scope")!==scope){const previous=localStorage.getItem("cmu_tenant_scope")||"legacy";for(const key of ["cmu_adherents","cmu_passages",PENDING_A_KEY,PENDING_P_KEY,"cmu_prescribers_extra"]){const old=localStorage.getItem(key);if(old!==null)localStorage.setItem("cmu_backup:"+previous+":"+key,old);localStorage.removeItem(key);const saved=localStorage.getItem("cmu_backup:"+scope+":"+key);if(saved!==null)localStorage.setItem(key,saved)}adherents=JSON.parse(localStorage.getItem("cmu_adherents")||"[]");passages=JSON.parse(localStorage.getItem("cmu_passages")||"[]");localStorage.setItem("cmu_tenant_scope",scope)}
  document.getElementById("cloud-auth").style.display="none";loginUI(session.user.email);
- const countRes=await cloud.from("adherents").select("*",{count:"exact",head:true});
+ const countRes=await cloud.from("adherents").select("*",{count:"exact",head:true}).eq("establishment_id",activeEstablishmentId);
  if(countRes.error){cloudState(cloudErrorText("Erreur contrôle Supabase",countRes.error),15000);return}
- const count=countRes.count;const s=localSnapshot();if((count||0)===0&&(s.a.length||s.p.length))await cloudPush(true);else await cloudPull();
+ const count=countRes.count;const s=localSnapshot();await cloudPull();
  if(!cloudSubscribed){cloudSubscribed=true;cloud.channel("cmu-live").on("postgres_changes",{event:"*",schema:"public",table:"adherents"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).on("postgres_changes",{event:"*",schema:"public",table:"passages"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).subscribe()}
 }
 const localSave=save; save=function(){const before=localSnapshot();const ok=localSave();if(ok===false)return false;const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100);return true};
@@ -1597,7 +1613,7 @@ deleteAdherent=async function(id){
  if(!confirm(msg))return;
  try{
   cloudState("Suppression en ligne…");
-  const r=await cloud.from("adherents").delete().eq("legacy_id",String(id));if(r.error)throw r.error;
+  const r=await cloud.from("adherents").delete().eq("establishment_id",activeEstablishmentId).eq("legacy_id",String(id));if(r.error)throw r.error;
   adherents=adherents.filter(x=>String(x.id)!==String(id));passages=passages.filter(p=>String(p.adherentId)!==String(id));
   const pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);pa.delete(String(id));linkedPassages.forEach(p=>pp.delete(String(p.id)));savePending(PENDING_A_KEY,pa);savePending(PENDING_P_KEY,pp);
   safeLocalJSON("cmu_adherents",adherents,lightAdherents);safeLocalJSON("cmu_passages",passages);render();cloudState("Supprimé de la base ✓");toast("Adhérent supprimé")
@@ -1614,7 +1630,7 @@ deletePassage=async function(id){
  }catch(e){console.error(e);cloudState("Suppression impossible — passage conservé");toast("Suppression non effectuée","error")}
 };
 document.getElementById("cloud-login").onclick=async()=>{cloudMsg("Connexion…");const {data,error}=await cloud.auth.signInWithPassword({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);cloudStart(data.session)};
-document.getElementById("cloud-signup").onclick=async()=>{cloudMsg("Création…");const {data,error}=await cloud.auth.signUp({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);if(!data.session)return cloudMsg("Compte créé. Vérifie ton e-mail puis connecte-toi.");cloudStart(data.session)};
+document.getElementById("cloud-signup").style.display="none";document.getElementById("cloud-signup").onclick=async()=>{cloudMsg("Création…");const {data,error}=await cloud.auth.signUp({email:document.getElementById("cloud-email").value.trim(),password:document.getElementById("cloud-pass").value});if(error)return cloudMsg(error.message);if(!data.session)return cloudMsg("Compte créé. Vérifie ton e-mail puis connecte-toi.");cloudStart(data.session)};
 document.getElementById("link-logout").onclick=async e=>{e.preventDefault();await cloud.auth.signOut();sessionStorage.removeItem("cmu_agent");location.reload()};
 cloud.auth.getSession().then(({data})=>{if(data.session)cloudStart(data.session)});
 </script>
