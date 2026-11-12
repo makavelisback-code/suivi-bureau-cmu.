@@ -150,7 +150,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
     <div><p class="label">N° du bon</p><input id="bon-numero" type="text" placeholder="N°"></div>
     <div><p class="label">Date d’émission</p><input id="bon-date" type="date"></div>
     <div class="full"><p class="label">Pharmacie</p><input id="bon-pharmacie" type="text" list="cmu-pharmacies-list" placeholder="Nom de la pharmacie"><datalist id="cmu-pharmacies-list"></datalist><div id="pharmacy-quick-picks" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
-    <div class="full"><p class="label">Structure de santé</p><select id="bon-structure" required><option value="">Sélectionner une structure</option><option value="EPS1 MBOUR">EPS1 MBOUR</option><option value="Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily">Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily</option><option value="CENTRE DE SANTÉ KEUR MAME EL HADJI">CENTRE DE SANTÉ KEUR MAME EL HADJI</option></select></div>
+    <div class="full" id="quota-panel" style="padding:12px;border:1px solid #ccc;border-radius:10px"><b>Orientation pharmacie · EPS1 Mbour</b><p id="quota-status"></p><input id="quota-address" placeholder="Adresse ou quartier du patient (facultatif)" style="width:100%;padding:8px"><button type="button" id="quota-suggest">Proposer une pharmacie</button><button type="button" id="quota-map">Carte de la pharmacie</button><p style="font-size:11px">Objectifs mensuels sur les bons : Pape Cheikh Diagne 60 %, Salve Regina 30 %, Khadidiatou 10 %. Vérifiez proximité, disponibilité et choix du patient. Adresse non conservée.</p></div><div class="full"><p class="label">Structure de santé</p><select id="bon-structure" required><option value="">Sélectionner une structure</option><option value="EPS1 MBOUR">EPS1 MBOUR</option><option value="Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily">Centre de Santé du 10e arrondissement de Thiès – Dr Mamadou Bathily</option><option value="CENTRE DE SANTÉ KEUR MAME EL HADJI">CENTRE DE SANTÉ KEUR MAME EL HADJI</option></select></div>
     <div><p class="label">Âge</p><input id="bon-age" type="number" min="0" max="130" placeholder="Âge"></div>
     <div><p class="label">Taux de prise en charge</p><input id="bon-pec" type="text" value="" readonly></div>
   </div>
@@ -1245,6 +1245,23 @@ function canonicalPharmacy(s){
  return v;
 }
 function passagePharmacyName(p){return canonicalPharmacy(p?.pharmacyName||p?.pharmacy?.pharmacie||p?.pharmacy?.pharmacy_name||"")}
+const CMU_QUOTAS=[["Pape Cheikh Diagne",.6],["Salve Regina",.3],["Khadidiatou",.1]];
+function cmuQuotaRefresh(){
+ const panel=document.getElementById("quota-panel");if(!panel)return;
+ panel.style.display=activeEstablishmentId==="3adae95e-a810-485e-96aa-c36f1c31aa68"?"block":"none";
+ if(panel.style.display==="none")return;
+ const seen=new Set(),counts=CMU_QUOTAS.map(([name,share])=>({name,share,n:0}));
+ passages.forEach(p=>{if(p.category!=="pharmacie"||String(p.date||"").slice(0,7)!==today().slice(0,7))return;const name=passagePharmacyName(p),bon=String(p.pharmacy?.bonNumero||"").trim();if(!bon)return;const key=bon;if(seen.has(key))return;const item=counts.find(x=>x.name===name);if(item){seen.add(key);item.n++}});
+ const total=counts.reduce((s,x)=>s+x.n,0);
+ document.getElementById("quota-status").textContent=counts.map(x=>x.name+" : "+x.n+" bon(s), "+(total?(100*x.n/total).toFixed(1):0)+" % / cible "+100*x.share+" %").join(" | ");
+ panel.dataset.suggest=counts.sort((a,b)=>(b.share*(total+1)-b.n)-(a.share*(total+1)-a.n))[0].name;
+}
+function cmuQuotaSetup(){
+ const suggest=document.getElementById("quota-suggest"),map=document.getElementById("quota-map");if(!suggest||!map)return;
+ suggest.onclick=()=>{cmuQuotaRefresh();const n=document.getElementById("quota-panel").dataset.suggest;document.getElementById("bon-pharmacie").value=n;toast("Suggestion selon les quotas : "+n+". Vérifier proximité et disponibilité.")};
+ map.onclick=()=>{const name=canonicalPharmacy(document.getElementById("bon-pharmacie").value)||"Pape Cheikh Diagne";window.open("https://www.openstreetmap.org/search?query="+encodeURIComponent("Pharmacie "+name+", Mbour, Sénégal"),"_blank","noopener,noreferrer")};
+ cmuQuotaRefresh();
+}
 function validatePharmacyForCentre(){
  const input=document.getElementById("bon-pharmacie");if(!input)return true;
  const name=canonicalPharmacy(input.value);
@@ -1497,9 +1514,10 @@ document.getElementById("apply-custom-period").onclick=()=>{const s=document.get
 document.getElementById("link-accounts").onclick=e=>{e.preventDefault();renderAccounts();document.getElementById("dlg-accounts").showModal()};document.getElementById("btn-close-accounts").onclick=()=>document.getElementById("dlg-accounts").close();
 function renderAccounts(){document.getElementById("accounts-list").innerHTML=accounts.map(a=>`<div class="list-row"><div class="left">${esc(a.name||a.id)}</div><span class="meta">${esc(a.id)}</span></div>`).join("")}
 document.getElementById("btn-add-account").onclick=()=>{let id=f("acc-id"),pass=f("acc-pass");if(!id||!pass||accounts.some(a=>a.id===id)){show("err-acc");return}accounts.push({id,pass,name:id});save();renderAccounts();document.getElementById("acc-id").value="";document.getElementById("acc-pass").value="";toast("Compte ajouté")}
-function render(){refreshPharmacyDirectories();renderToday();renderAdherents();renderStats()}setup();
+function render(){refreshPharmacyDirectories();renderToday();renderAdherents();renderStats();cmuQuotaRefresh()}setup();
 
 
+setTimeout(()=>{try{cmuQuotaSetup()}catch(e){console.warn(e)}},400);
 setTimeout(()=>{try{initCmuSuggestions()}catch(e){console.warn("Suggestions CMU non initialisées",e)}},300);
 </script>
 
