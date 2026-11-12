@@ -1151,7 +1151,7 @@ function editPassage(id){
   phone=prompt("Numéro de téléphone de l’adhérent (facultatif) :",a.telephone||"");
   if(phone===null)return;
   phone=phone.trim();
-  if(phone&&!/^[+0-9 ()\\-.]{7,25}$/.test(phone)){toast("Numéro de téléphone invalide","error");return}
+  if(phone&&!/^[+0-9 (). -]{7,25}$/.test(phone)){toast("Numéro de téléphone invalide","error");return}
  }
  if(p.category==="pharmacie"){p.prescriber=detail.trim();p.pharmacy={...(p.pharmacy||{}),pharmacie:pharmacyName};p.pharmacyName=pharmacyName}
  else p.prestations=detail.split(",").map(x=>x.trim()).filter(Boolean);
