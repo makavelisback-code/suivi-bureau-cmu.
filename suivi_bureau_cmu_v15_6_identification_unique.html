@@ -1131,17 +1131,33 @@ function deletePassage(id){
 function editPassage(id){
  const p=passages.find(x=>String(x.id)===String(id));if(!p)return;
  const a=adherents.find(x=>x.id===p.adherentId)||{};
- const oldDate=p.date;
  const input=prompt("Modifier le bulletin de passage de "+name(a)+"\\n\\nDate et heure (AAAA-MM-JJTHH:MM) :",new Date(p.date).toISOString().slice(0,16));
  if(input===null)return;
  const parsed=new Date(input);
  if(!input.trim()||Number.isNaN(parsed.getTime())){toast("Date ou heure invalide","error");return}
  const detail=prompt("Prestations (séparées par une virgule), ou prescripteur si pharmacie :",p.category==="pharmacie"?(p.prescriber||""):(p.prestations||[]).join(", "));
  if(detail===null)return;
- if(p.category==="pharmacie"){if(!detail.trim()){toast("Prescripteur requis","error");return}p.prescriber=detail.trim()}
+ if(p.category==="pharmacie"&&!detail.trim()){toast("Prescripteur requis","error");return}
+ let pharmacyName=null;
+ if(p.category==="pharmacie"){
+  pharmacyName=prompt("Nom de la pharmacie :",p.pharmacy?.pharmacie||p.pharmacyName||"");
+  if(pharmacyName===null)return;
+  pharmacyName=canonicalPharmacy(pharmacyName);
+  if(!pharmacyName){toast("Nom de pharmacie requis","error");return}
+  if(activeEstablishmentId==="3adae95e-a810-485e-96aa-c36f1c31aa68"&&!CMU_PHARMACIES.includes(pharmacyName)){toast("Choisissez une pharmacie partenaire de Mbour.","error");return}
+ }
+ let phone=null;
+ if(a.id){
+  phone=prompt("Numéro de téléphone de l’adhérent (facultatif) :",a.telephone||"");
+  if(phone===null)return;
+  phone=phone.trim();
+  if(phone&&!/^[+0-9 ()\\-.]{7,25}$/.test(phone)){toast("Numéro de téléphone invalide","error");return}
+ }
+ if(p.category==="pharmacie"){p.prescriber=detail.trim();p.pharmacy={...(p.pharmacy||{}),pharmacie:pharmacyName};p.pharmacyName=pharmacyName}
  else p.prestations=detail.split(",").map(x=>x.trim()).filter(Boolean);
+ if(a.id&&phone!==null)a.telephone=phone;
  p.date=parsed.toISOString();
- save();render();toast("✓ Bulletin modifié sans nouveau passage");
+ save();render();toast("✓ Passage, pharmacie et téléphone mis à jour");
 }
 function renderToday(){
   let d=today(),ps=passages.filter(p=>passageLocalDay(p)===d),box=document.getElementById("today-list");
