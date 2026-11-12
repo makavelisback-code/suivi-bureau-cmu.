@@ -1657,5 +1657,27 @@ document.getElementById("cloud-signup").style.display="none";document.getElement
 document.getElementById("link-logout").onclick=async e=>{e.preventDefault();await cloud.auth.signOut();sessionStorage.removeItem("cmu_agent");location.reload()};
 cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPending)cloudStart(data.session)});
 </script>
+<script>
+(function(){
+ const btn=document.getElementById("cloud-login"),msg=document.getElementById("cloud-msg");
+ if(!btn||!msg)return;
+ btn.type="button";
+ btn.onclick=async function(){
+  const email=document.getElementById("cloud-email").value.trim(),password=document.getElementById("cloud-pass").value;
+  if(!email||!password){msg.textContent="Saisissez votre adresse e-mail et votre mot de passe.";return}
+  btn.disabled=true;msg.textContent="Connexion en cours…";
+  try{
+   if(!window.supabase||!window.supabase.createClient)throw Error("Bibliothèque de connexion indisponible. Vérifiez Internet et rechargez la page.");
+   const client=typeof cloud!=="undefined"?cloud:window.supabase.createClient("https://kboseofjxxioqvqdqdqf.supabase.co","sb_publishable_1cgBKnGkqfCqkll2Y_aEeg__oNdfo-X");
+   const {data,error}=await client.auth.signInWithPassword({email,password});
+   if(error)throw error;
+   if(!data||!data.session)throw Error("Aucune session reçue. Réessayez.");
+   if(typeof cloudStart==="function")await cloudStart(data.session);
+   else{msg.textContent="Connexion validée. Rechargez la page pour ouvrir le bureau.";return}
+  }catch(e){msg.textContent="Connexion impossible : "+(e?.message||"erreur inconnue");}
+  finally{btn.disabled=false}
+ };
+})();
+</script>
 
 </body></html>
