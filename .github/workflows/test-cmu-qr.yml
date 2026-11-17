@@ -1,0 +1,32 @@
+name: Vérification scanner QR CMU
+on:
+  pull_request:
+    paths:
+      - 'suivi_bureau_cmu_v15_6_identification_unique.html'
+      - '.github/workflows/test-cmu-qr.yml'
+  workflow_dispatch:
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Vérifier scripts et champs QR
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm'),assert=require('assert');
+          const s=fs.readFileSync('suivi_bureau_cmu_v15_6_identification_unique.html','utf8');
+          assert(s.includes('id="new-numero"'),'Champ immatriculation absent');
+          assert(s.includes('id="cmu-qr-start"'),'Bouton scanner absent');
+          assert(s.includes('id="cmu-qr-stop"'),'Bouton arrêt absent');
+          assert(s.includes('id="cmu-qr-official"'),'Lien vérification absent');
+          assert(s.includes('document.getElementById("new-numero")')||s.includes('$("new-numero").value=code'),'Affectation immatriculation absente');
+          assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Restriction domaines absente');
+          const scripts=[...s.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+          for(const [,code] of scripts){if(code.trim())new vm.Script(code)}
+          assert(scripts.length>0,'Aucun script');
+          console.log('Vérifications statiques OK ('+scripts.length+' scripts).');
+          NODE
