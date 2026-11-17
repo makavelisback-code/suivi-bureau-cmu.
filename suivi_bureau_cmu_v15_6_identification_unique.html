@@ -1601,7 +1601,7 @@ async function cloudPush(forceAll=false){
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const adherentsToPush=forceAll?s.a:s.a.filter(x=>pa.has(String(x.id)));
   if(adherentsToPush.length){
-   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
+   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,birth_date:x.birthDate||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
    const r=await cloud.from("adherents").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
   const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",activeEstablishmentId); if(ar.error)throw ar.error;
@@ -1639,7 +1639,7 @@ async function cloudPull(){
   const [allAdherents,allPassages]=await Promise.all([fetchAllCloudRows("adherents"),fetchAllCloudRows("passages")]);
   const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
-  const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
+  const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",birthDate:x.birth_date||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
   const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?{...d,pharmacie:x.pharmacy_name||d.pharmacie||""}:null,pharmacyName:x.pharmacy_name||d.pharmacie||"",prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
   // Protect local entries during a delayed cloud response. Re-check pending IDs after network awaits.
   const freshA=pendingSet(PENDING_A_KEY),freshP=pendingSet(PENDING_P_KEY);
