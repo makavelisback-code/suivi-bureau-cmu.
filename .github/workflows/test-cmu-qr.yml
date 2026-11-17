@@ -23,6 +23,15 @@ jobs:
           assert(s.includes('id="cmu-qr-start"'),'Bouton scanner absent');
           assert(s.includes('id="cmu-qr-stop"'),'Bouton arrêt absent');
           assert(s.includes('id="cmu-qr-official"'),'Lien vérification absent');
+          assert(s.includes('id="dlg-add-adherent"'),'Formulaire adhérent absent');
+          assert(s.includes('id="new-prenom"')&&s.includes('id="new-nom"'),'Champs identité absents');
+          assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
+          assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
+          assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
+          assert(s.includes('$("dlg-add-adherent").addEventListener("close",stop)'),'Arrêt caméra à la fermeture absent');
+          const qrScript=s.slice(s.indexOf('/* CMU QR V15.6'),s.lastIndexOf('</script>'));
+          assert(!/localStorage\.setItem|supabase\.from|fetch\(/.test(qrScript),'Le scanner ne doit pas enregistrer ou transmettre de données');
+          assert(!/codeAssure|code_assure|code-assure/i.test(qrScript),'Le scanner ne doit pas modifier le code assuré');
           assert(s.includes('document.getElementById("new-numero")')||s.includes('$("new-numero").value=code'),'Affectation immatriculation absente');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Restriction domaines absente');
           const scripts=[...s.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
