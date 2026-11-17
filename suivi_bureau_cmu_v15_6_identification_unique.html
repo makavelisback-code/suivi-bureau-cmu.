@@ -180,6 +180,7 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
 <p class="label">Photo de l'adhérent</p>
 <div class="photo-picker"><div class="photo-box" id="new-photo-box">Aucune photo</div><div><div class="btn-row"><label class="btn-photo" for="new-photo-input">Prendre une photo</label><label class="btn-photo" for="new-gallery-input">Galerie</label></div><p class="photo-hint">La photo sera conservée avec la fiche.</p></div></div>
 <input type="file" accept="image/*" capture="environment" id="new-photo-input" hidden><input type="file" accept="image/*" id="new-gallery-input" hidden>
+<div class="doc-reader" id="cmu-qr-module"><p class="doc-reader-title">Identification par QR code SunuCSU</p><p class="photo-hint">Le QR code renseigne uniquement le numéro d’immatriculation de la carte. Le code assuré reste inchangé. L’identité et la validité nécessitent une vérification officielle.</p><button type="button" class="btn-secondary" id="cmu-qr-start">📷 Scanner le QR code</button><video id="cmu-qr-video" autoplay playsinline muted style="display:none;width:100%;border-radius:10px;margin-top:8px"></video><button type="button" class="btn-secondary" id="cmu-qr-stop" style="display:none">Arrêter la caméra</button><p class="label" style="margin-top:10px">Coller le lien ou le code de la carte</p><input id="cmu-qr-manual" type="text" autocomplete="off" placeholder="Ex. Z8991E3303"><button type="button" class="btn-secondary" id="cmu-qr-apply">Utiliser ce numéro d’immatriculation</button><p id="cmu-qr-status" class="photo-hint" role="status"></p><a id="cmu-qr-official" target="_blank" rel="noopener noreferrer" style="display:none;font-size:13px;color:#0F6B5C">Vérifier sur le portail officiel SunuCSU</a></div>
 <p class="label">Prénom</p><input id="new-prenom" type="text"><p class="label">Nom</p><input id="new-nom" type="text"><p class="label">N° immatriculation</p><input id="new-numero" type="text"><p class="label">Téléphone</p><input id="new-telephone" type="text"><p class="label">Genre</p><div class="pill-group gender-group"><div class="pill" id="new-gender-f">F</div><div class="pill" id="new-gender-m">M</div></div><p class="label">Type d'assuré</p><div class="pill-group insurance-group"><div class="pill" id="new-insurance-classique">Classique (carte)</div><div class="pill" id="new-insurance-sesame">Plan Sésame</div><div class="pill" id="new-insurance-cec">CEC (Carte d’égalité des chances)</div></div><p class="err" id="err-new-profile">Choisissez le sexe F/M et le type d'assuré.</p><p class="err" id="err-new-nom">Le prénom et le nom sont requis.</p><div class="adherent-save-actions"><button type="button" class="btn-primary" id="btn-confirm-add-adherent">Ajouter l'adhérent</button><button type="button" class="btn-secondary" id="btn-cancel-add-adherent">Annuler</button></div></div></dialog>
 <dialog id="dlg-confirm"><div class="dialog-body"><h3>Confirmation</h3><p id="confirm-message"></p><div class="dialog-actions"><button class="btn-secondary" id="confirm-no">Annuler</button><button class="btn-primary" id="confirm-yes">Continuer</button></div></div></dialog>
 <dialog id="dlg-accounts"><div class="dialog-body"><h3>Comptes agents</h3><div id="accounts-list"></div><p class="label">Nouvel identifiant</p><input id="acc-id" type="text"><p class="label">Mot de passe</p><input id="acc-pass" type="password"><p class="err" id="err-acc">Identifiant et mot de passe requis ou déjà utilisé.</p><button class="btn-primary" id="btn-add-account">Ajouter ce compte</button><button class="btn-secondary" id="btn-close-accounts">Fermer</button></div></dialog>
@@ -1719,4 +1720,57 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
 })();
 </script>
 
+<script>
+/* CMU QR V15.6 — identification du numéro de carte uniquement; aucun accès automatisé aux données de santé */
+(function(){
+ const $=id=>document.getElementById(id);
+ let stream=null,active=false;
+ function parseCode(raw){
+  const value=String(raw||"").trim();
+  if(/^[A-Z0-9]{6,24}$/i.test(value))return value.toUpperCase();
+  try{
+   const url=new URL(value);
+   if(url.protocol!=="https:"||!["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(url.hostname.toLowerCase()))return null;
+   const code=url.searchParams.get("code")||"";
+   return /^[A-Z0-9]{6,24}$/i.test(code)?code.toUpperCase():null;
+  }catch(_){return null}
+ }
+ function status(t){$("cmu-qr-status").textContent=t}
+ function apply(raw){
+  const code=parseCode(raw);
+  if(!code){status("Code non reconnu : saisissez le code de la carte ou un lien SunuCSU officiel.");return false}
+  $("new-numero").value=code;
+  $("cmu-qr-manual").value=code;
+  const a=$("cmu-qr-official");a.href="https://carte.sencsu.sn/?code="+encodeURIComponent(code);a.style.display="inline-block";
+  status("Numéro d’immatriculation renseigné : "+code+". Vérifiez l’identité et la validité sur le portail officiel avant l’enregistrement.");
+  stop();return true;
+ }
+ function stop(){
+  active=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $("cmu-qr-video").style.display="none";$("cmu-qr-stop").style.display="none";
+ }
+ async function start(){
+  if(!window.isSecureContext){status("La caméra nécessite une connexion HTTPS.");return}
+  if(!("BarcodeDetector" in window)){status("Scanner caméra indisponible dans ce navigateur. Collez le lien ou le code de la carte.");return}
+  try{
+   const formats=await BarcodeDetector.getSupportedFormats();
+   if(!formats.includes("qr_code")){status("Lecture QR non prise en charge sur cet appareil.");return}
+   const detector=new BarcodeDetector({formats:["qr_code"]});
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+   const video=$("cmu-qr-video");video.srcObject=stream;video.style.display="block";$("cmu-qr-stop").style.display="block";
+   await video.play();active=true;status("Présentez le QR code devant la caméra.");
+   const loop=async()=>{
+    if(!active)return;
+    try{for(const item of await detector.detect(video)){if(apply(item.rawValue))return}}catch(_){}
+    if(active)setTimeout(loop,250);
+   };loop();
+  }catch(e){stop();status("Caméra inaccessible : vérifiez les autorisations ou utilisez la saisie manuelle.")}
+ }
+ $("cmu-qr-start").addEventListener("click",start);
+ $("cmu-qr-stop").addEventListener("click",stop);
+ $("cmu-qr-apply").addEventListener("click",()=>apply($("cmu-qr-manual").value));
+ $("dlg-add-adherent").addEventListener("close",stop);
+})();
+</script>
 </body></html>
