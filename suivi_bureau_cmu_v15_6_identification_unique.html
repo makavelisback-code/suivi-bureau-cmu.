@@ -1741,7 +1741,7 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
   if(!code){status("Code non reconnu : saisissez le code de la carte ou un lien SunuCSU officiel.");return false}
   $("new-numero").value=code;
   $("cmu-qr-manual").value=code;
-  const a=$("cmu-qr-official");a.href="https://carte.sencsu.sn/?code="+encodeURIComponent(code);a.style.display="inline-block";
+  const a=$("cmu-qr-official");let officialHost="carte.sencsu.sn";try{const u=new URL(String(raw).trim());if(["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(u.hostname.toLowerCase()))officialHost=u.hostname.toLowerCase()}catch(_){}a.href="https://"+officialHost+"/?code="+encodeURIComponent(code);a.style.display="inline-block";
   status("Numéro d’immatriculation renseigné : "+code+". Vérifiez l’identité et la validité sur le portail officiel avant l’enregistrement.");
   stop();return true;
  }
