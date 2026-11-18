@@ -1615,11 +1615,13 @@ async function cloudPush(forceAll=false){
    const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:activeEstablishmentId,created_at:x.date||new Date().toISOString()}));
    const r=await cloud.from("passages").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  if(forceAll){pa.clear();pp.clear()}else{
-   adherentsToPush.forEach(x=>pa.delete(String(x.id)));
-   passagesToPush.forEach(x=>pp.delete(String(x.id)));
-  }
-  savePending(PENDING_A_KEY,pa);savePending(PENDING_P_KEY,pp);cloudState("Synchronisé ✓");
+  // Ne jamais acquitter une modification locale arrivée pendant la requête réseau.
+  const latest=localSnapshot(),latestA=new Map(latest.a.map(x=>[String(x.id),JSON.stringify(x)])),latestP=new Map(latest.p.map(x=>[String(x.id),JSON.stringify(x)]));
+  const pendingA=pendingSet(PENDING_A_KEY),pendingP=pendingSet(PENDING_P_KEY);
+  adherentsToPush.forEach(x=>{if(latestA.get(String(x.id))===JSON.stringify(x))pendingA.delete(String(x.id));else cloudPushQueued=true});
+  passagesToPush.forEach(x=>{if(latestP.get(String(x.id))===JSON.stringify(x))pendingP.delete(String(x.id));else cloudPushQueued=true});
+  savePending(PENDING_A_KEY,pendingA);savePending(PENDING_P_KEY,pendingP);
+  cloudState(pendingA.size||pendingP.size?"Modifications locales en attente":"Synchronisé ✓");
  }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");cloudState(duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e),12000);}
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
