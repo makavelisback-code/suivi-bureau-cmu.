@@ -1600,21 +1600,26 @@ function mergeById(remote,local,pending){
 }
 async function cloudPush(forceAll=false){
  if(!activeEstablishmentId)return;if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
+ const pushEstablishmentId=activeEstablishmentId, pushScope=localStorage.getItem("cmu_tenant_scope");
  try{
   const {data:{user}}=await cloud.auth.getUser(); if(!user)return;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const adherentsToPush=forceAll?s.a:s.a.filter(x=>pa.has(String(x.id)));
   if(adherentsToPush.length){
-   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,birth_date:x.birthDate||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
+   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,birth_date:x.birthDate||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:pushEstablishmentId}));
    const r=await cloud.from("adherents").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",activeEstablishmentId); if(ar.error)throw ar.error;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
+  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",pushEstablishmentId); if(ar.error)throw ar.error;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
   const ids=new Map(ar.data.map(x=>[String(x.legacy_id),x.id]));
   const passagesToPush=(forceAll?s.p:s.p.filter(x=>pp.has(String(x.id)))).filter(x=>ids.has(String(x.adherentId)));
   if(passagesToPush.length){
-   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:activeEstablishmentId,created_at:x.date||new Date().toISOString()}));
+   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:pushEstablishmentId,created_at:x.date||new Date().toISOString()}));
    const r=await cloud.from("passages").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
   // Ne jamais acquitter une modification locale arrivée pendant la requête réseau.
   const latest=localSnapshot(),latestA=new Map(latest.a.map(x=>[String(x.id),JSON.stringify(x)])),latestP=new Map(latest.p.map(x=>[String(x.id),JSON.stringify(x)]));
   const pendingA=pendingSet(PENDING_A_KEY),pendingP=pendingSet(PENDING_P_KEY);
