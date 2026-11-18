@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Vérifier contrat de couverture fictif
+        run: node tests/sunucsu-coverage-contract.test.js
       - name: Vérifier scripts et champs QR
         shell: bash
         run: |
