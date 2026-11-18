@@ -43,6 +43,16 @@ jobs:
           assert.strictEqual(empty.birthDate,"",'Date inconnue doit rester vide');
           assert(s.includes('Date de naissance invalide ou future'),'Contrôle date de naissance absent');
           assert(s.includes('timeZone:"Africa/Dakar"'),'Comparaison avec date locale Sénégal absente');
+          // Exécuter la vraie condition du formulaire sur des valeurs synthétiques.
+          const dateGuard=s.match(/if\(birthDate && \(([^\n]+)\)\)\{toast\("Date de naissance invalide ou future"/);
+          assert(dateGuard,'Condition de validation introuvable');
+          const invalid=(birthDate)=>vm.runInNewContext(dateGuard[1],{birthDate,Date});
+          assert.strictEqual(invalid('2000-02-29'),false,'Jour bissextile valide refusé');
+          assert.strictEqual(invalid('2001-02-29'),true,'Jour bissextile invalide accepté');
+          assert.strictEqual(invalid('2026-02-30'),true,'Date inexistante acceptée');
+          assert.strictEqual(invalid('2099-01-01'),true,'Date future acceptée');
+          assert.strictEqual(invalid('2000/02/29'),true,'Format invalide accepté');
+
 
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
