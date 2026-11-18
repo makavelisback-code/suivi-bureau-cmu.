@@ -31,6 +31,17 @@ jobs:
           assert(s.includes('birthDate:f("new-birth")'),'Enregistrement local de la date de naissance absent');
           assert(s.includes('adherents.push({id:newId')&&s.includes('birthDate:f("new-birth")'),'Date de naissance manquante à la création');
           assert(s.includes('pending.add(String(newId))')&&s.includes('pending.add(String(updatedId))'),'Mise en attente de synchronisation absente');
+          // Test de correspondance aller-retour sans accès à des données patients.
+          const birth='2000-02-29';
+          const local={birthDate:birth};
+          assert(s.includes('birth_date:x.birthDate||null'),'Mapping envoi manquant');
+          assert(s.includes('birthDate:x.birth_date||""'),'Mapping réception manquant');
+          const outbound={birth_date:local.birthDate||null};
+          const inbound={birthDate:outbound.birth_date||""};
+          assert.strictEqual(inbound.birthDate,birth,'La date doit survivre à un aller-retour');
+          const empty={birthDate:({birth_date:null}).birth_date||""};
+          assert.strictEqual(empty.birthDate,"",'Date inconnue doit rester vide');
+
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
           assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
