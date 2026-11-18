@@ -212,6 +212,15 @@ jobs:
           const previous=els['new-numero'].value;
           assert.strictEqual(apply('https://evil.example/?code=CHANGED'),false);
           assert.strictEqual(els['new-numero'].value,previous,'QR invalide a changé le numéro');
+          assert.strictEqual(stops,1,'QR invalide a interrompu la caméra');
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://carte.sencsu.sn/?code=Z8991E3303','QR invalide a modifié le lien officiel');
+          assert(els['cmu-qr-status'].textContent.includes('Code non reconnu'),'Erreur QR non signalée');
+          assert.strictEqual(apply('https://scancarte.sunucsu.sn/?code=AB123456'),true);
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://scancarte.sunucsu.sn/?code=AB123456','Domaine officiel du QR non conservé');
+          assert.strictEqual(stops,2,'Arrêt caméra absent après seconde lecture');
+
           for(const bad of [
             'http://carte.sencsu.sn/?code=AB123456',
             'https://carte.sencsu.sn.evil.example/?code=AB123456',
