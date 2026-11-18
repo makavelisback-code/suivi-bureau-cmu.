@@ -41,6 +41,8 @@ jobs:
           assert.strictEqual(inbound.birthDate,birth,'La date doit survivre à un aller-retour');
           const empty={birthDate:({birth_date:null}).birth_date||""};
           assert.strictEqual(empty.birthDate,"",'Date inconnue doit rester vide');
+          assert(s.includes('Date de naissance invalide ou future'),'Contrôle date de naissance absent');
+          assert(s.includes('timeZone:"Africa/Dakar"'),'Comparaison avec date locale Sénégal absente');
 
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
