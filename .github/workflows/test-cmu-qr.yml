@@ -60,13 +60,16 @@ jobs:
           const duplicateEnd=s.indexOf(';',duplicateStart);
           assert(duplicateStart>=0&&duplicateEnd>duplicateStart,'Contrôle des doublons absent');
           const duplicateCode=s.slice(duplicateStart,duplicateEnd+1);
+          const normStart=s.indexOf('function normNumero(v){');
+          const normEnd=s.indexOf('function normPhone(',normStart);
+          assert(normStart>=0&&normEnd>normStart,'Normalisation immatriculation absente');
+          const realNorm=vm.runInNewContext(s.slice(normStart,normEnd)+';normNumero');
           const duplicate=(adherents,enteredNumero,editingAdherentId)=>{
-            const ctx={adherents,enteredNumero,editingAdherentId,
-              normNumero:x=>String(x||'').replace(/[^a-z0-9]/gi,'').toUpperCase()};
+            const ctx={adherents,enteredNumero,editingAdherentId,normNumero:realNorm};
             return vm.runInNewContext(duplicateCode+';Boolean(sameNumero)',ctx);
           };
-          const patients=[{id:'a1',numero:'AB-123456'},{id:'a2',numero:'CD987654'}];
-          assert.strictEqual(duplicate(patients,'ab 123456',null),true,'Doublon non détecté');
+          const patients=[{id:'a1',numero:'AB123456'},{id:'a2',numero:'CD987654'}];
+          assert.strictEqual(duplicate(patients,' ab 123456 ',null),true,'Doublon non détecté');
           assert.strictEqual(duplicate(patients,'AB123456','a1'),false,'Modification du même dossier bloquée');
           assert.strictEqual(duplicate(patients,'ZZ999999',null),false,'Nouvelle immatriculation refusée');
           assert(s.includes('N° d’immatriculation requis pour identifier le patient'),'Numéro obligatoire non contrôlé');
