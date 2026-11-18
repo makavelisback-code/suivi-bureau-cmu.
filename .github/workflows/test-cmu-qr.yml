@@ -1,0 +1,266 @@
+name: Vérification scanner QR CMU
+on:
+  pull_request:
+    paths:
+      - 'suivi_bureau_cmu_v15_6_identification_unique.html'
+      - '.github/workflows/test-cmu-qr.yml'
+  workflow_dispatch:
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Vérifier contrat de couverture fictif
+        run: node tests/sunucsu-coverage-contract.test.js
+      - name: Vérifier scripts et champs QR
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm'),assert=require('assert');
+          const s=fs.readFileSync('suivi_bureau_cmu_v15_6_identification_unique.html','utf8');
+          assert(s.includes('id="new-numero"'),'Champ immatriculation absent');
+          assert(s.includes('id="cmu-qr-start"'),'Bouton scanner absent');
+          assert(s.includes('id="cmu-qr-stop"'),'Bouton arrêt absent');
+          assert(s.includes('id="cmu-qr-official"'),'Lien vérification absent');
+          assert(s.includes('id="dlg-add-adherent"'),'Formulaire adhérent absent');
+          assert(s.includes('id="new-prenom"')&&s.includes('id="new-nom"'),'Champs identité absents');
+          assert(s.includes('id="new-birth"'),'Champ date de naissance absent');
+          assert(s.includes('birth_date:x.birthDate||null'),'Envoi date de naissance vers Supabase absent');
+          assert(s.includes('birthDate:x.birth_date||""'),'Relecture date de naissance depuis Supabase absente');
+          assert(s.includes('birthDate:f("new-birth")'),'Enregistrement local de la date de naissance absent');
+          assert(s.includes('adherents.push({id:newId')&&s.includes('birthDate:f("new-birth")'),'Date de naissance manquante à la création');
+          assert(s.includes('pending.add(String(newId))')&&s.includes('pending.add(String(updatedId))'),'Mise en attente de synchronisation absente');
+          // Test de correspondance aller-retour sans accès à des données patients.
+          const birth='2000-02-29';
+          const local={birthDate:birth};
+          assert(s.includes('birth_date:x.birthDate||null'),'Mapping envoi manquant');
+          assert(s.includes('birthDate:x.birth_date||""'),'Mapping réception manquant');
+          const outbound={birth_date:local.birthDate||null};
+          const inbound={birthDate:outbound.birth_date||""};
+          assert.strictEqual(inbound.birthDate,birth,'La date doit survivre à un aller-retour');
+          const empty={birthDate:({birth_date:null}).birth_date||""};
+          assert.strictEqual(empty.birthDate,"",'Date inconnue doit rester vide');
+          assert(s.includes('Date de naissance invalide ou future'),'Contrôle date de naissance absent');
+          assert(s.includes('timeZone:"Africa/Dakar"'),'Comparaison avec date locale Sénégal absente');
+          // Exécuter la vraie condition du formulaire sur des valeurs synthétiques.
+          const dateGuard=s.match(/if\(birthDate && \(([^\n]+)\)\)\{toast\("Date de naissance invalide ou future"/);
+          assert(dateGuard,'Condition de validation introuvable');
+          const invalid=(birthDate)=>vm.runInNewContext(dateGuard[1],{birthDate,Date});
+          assert.strictEqual(invalid('2000-02-29'),false,'Jour bissextile valide refusé');
+          assert.strictEqual(invalid('2001-02-29'),true,'Jour bissextile invalide accepté');
+          assert.strictEqual(invalid('2026-02-30'),true,'Date inexistante acceptée');
+          assert.strictEqual(invalid('2099-01-01'),true,'Date future acceptée');
+          assert.strictEqual(invalid('2000/02/29'),true,'Format invalide accepté');
+
+          // Contrôler les quatre champs d'identification et la prévention des doublons.
+          const identityFields=['new-nom','new-prenom','new-numero','new-birth'];
+          for(const id of identityFields)assert(new RegExp('id="'+id+'"').test(s),'Champ identité absent : '+id);
+          const duplicateStart=s.indexOf('const sameNumero=adherents.find(');
+          const duplicateEnd=s.indexOf(';',duplicateStart);
+          assert(duplicateStart>=0&&duplicateEnd>duplicateStart,'Contrôle des doublons absent');
+          const duplicateCode=s.slice(duplicateStart,duplicateEnd+1);
+          const normStart=s.indexOf('function normNumero(v){');
+          const normEnd=s.indexOf('function normPhone(',normStart);
+          assert(normStart>=0&&normEnd>normStart,'Normalisation immatriculation absente');
+          const realNorm=vm.runInNewContext(s.slice(normStart,normEnd)+';normNumero');
+          const duplicate=(adherents,enteredNumero,editingAdherentId)=>{
+            const ctx={adherents,enteredNumero,editingAdherentId,normNumero:realNorm};
+            return vm.runInNewContext(duplicateCode+';Boolean(sameNumero)',ctx);
+          };
+          const patients=[{id:'a1',numero:'AB123456'},{id:'a2',numero:'CD987654'}];
+          assert.strictEqual(duplicate(patients,' ab 123456 ',null),true,'Doublon non détecté');
+          assert.strictEqual(duplicate(patients,'AB123456','a1'),false,'Modification du même dossier bloquée');
+          assert.strictEqual(duplicate(patients,'ZZ999999',null),false,'Nouvelle immatriculation refusée');
+          assert(s.includes('N° d’immatriculation requis pour identifier le patient'),'Numéro obligatoire non contrôlé');
+          // Exécuter la logique réelle d'acquittement des modifications en cours de synchronisation.
+          const start=s.indexOf('  const latest=localSnapshot(),latestA=');
+          const end=s.indexOf('  cloudState(blockedPassages?',start);
+          assert(start>=0&&end>start,'Protection des modifications concurrentes absente');
+          const ackCode=s.slice(start,end);
+          const runAck=(sent,current)=>{
+            const pending=new Set(['benef-1']);
+            let persisted=null;
+            const ctx={
+              localSnapshot:()=>({a:[{id:'benef-1',birthDate:current}],p:[]}),
+              adherentsToPush:[{id:'benef-1',birthDate:sent}],
+              passagesToPush:[],
+              pendingSet:(key)=>new Set(key==='A'?pending:[]),
+              savePending:(key,set)=>{if(key==='A')persisted=[...set]},
+              PENDING_A_KEY:'A',PENDING_P_KEY:'P',cloudPushQueued:false,
+            };
+            vm.runInNewContext(ackCode,ctx);
+            return {persisted,queued:ctx.cloudPushQueued};
+          };
+          const changed=runAck('2000-02-29','2001-03-01');
+          assert.deepStrictEqual(changed.persisted,['benef-1'],'Modification récente perdue');
+          assert.strictEqual(changed.queued,true,'Nouvelle synchronisation non programmée');
+          const unchanged=runAck('2000-02-29','2000-02-29');
+          assert.deepStrictEqual(unchanged.persisted,[],'Modification déjà envoyée non acquittée');
+          // Exécuter la fonction réelle de fusion des données reçues et locales.
+          const mergeStart=s.indexOf('function mergeById(remote,local,pending){');
+          const mergeEnd=s.indexOf('async function cloudPush(',mergeStart);
+          assert(mergeStart>=0&&mergeEnd>mergeStart,'Fusion des dossiers introuvable');
+          const merge=vm.runInNewContext(s.slice(mergeStart,mergeEnd)+';mergeById');
+          const remote=[{id:'a',birthDate:'2000-01-01'},{id:'b',birthDate:'1999-01-01'}];
+          const localMergeRows=[{id:'a',birthDate:'2001-02-02'},{id:'c',birthDate:'2002-03-03'}];
+          const merged=merge(remote,localMergeRows,new Set(['a','c']));
+          assert.strictEqual(merged.find(x=>x.id==='a').birthDate,'2001-02-02','Modification locale en attente écrasée');
+          assert.strictEqual(merged.find(x=>x.id==='c').birthDate,'2002-03-03','Nouvel adhérent local perdu');
+          assert.strictEqual(merged.find(x=>x.id==='b').birthDate,'1999-01-01','Dossier serveur perdu');
+          const noPending=merge(remote,localMergeRows,new Set());
+          assert.strictEqual(noPending.find(x=>x.id==='a').birthDate,'2000-01-01','Donnée distante non retenue');
+          assert(!noPending.some(x=>x.id==='c'),'Ancien dossier local ressuscité');
+          // Scénario de reconnexion : un appareil hors ligne ne doit pas
+          // ressusciter un dossier supprimé sur le serveur.
+          const deletedRemote=[{id:'a',nom:'Dossier actif'}];
+          const staleLocal=[{id:'a',nom:'Ancienne copie'},{id:'deleted',nom:'Dossier supprimé'}];
+          const afterReconnect=merge(deletedRemote,staleLocal,new Set());
+          assert.strictEqual(afterReconnect.length,1,'Un dossier supprimé est réapparu');
+          assert.strictEqual(afterReconnect[0].nom,'Dossier actif','Une copie obsolète a remplacé le serveur');
+          // Inversement, une modification locale non envoyée doit rester intacte.
+          const offlineChange=merge(deletedRemote,staleLocal,new Set(['a']));
+          assert.strictEqual(offlineChange.find(x=>x.id==='a').nom,'Ancienne copie','Modification hors ligne perdue');
+          // IDs numériques historiques et chaînes doivent être traités pareil.
+          const legacy=merge([{id:42,nom:'Serveur'}],[{id:'42',nom:'Modification locale'}],new Set(['42']));
+          assert.strictEqual(legacy.length,1,'Doublon créé pour un identifiant historique');
+          assert.strictEqual(legacy[0].nom,'Modification locale','Identifiant historique non fusionné');
+
+
+          // Test réel du bloc de séparation avec un stockage simulé.
+          const scopeStart=s.indexOf(' const scope=session.user.id+":"+activeEstablishmentId;');
+          const scopeEnd=s.indexOf(' document.getElementById("cloud-auth")',scopeStart);
+          assert(scopeStart>=0&&scopeEnd>scopeStart,'Séparation des établissements introuvable');
+          const mem=new Map();
+          const store={getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)};
+          const ctx={localStorage:store,session:{user:{id:'agent-1'}},activeEstablishmentId:'centre-A',
+            PENDING_A_KEY:'pending-a',PENDING_P_KEY:'pending-p',adherents:[],passages:[],JSON};
+          const change=()=>vm.runInNewContext('(()=>{'+s.slice(scopeStart,scopeEnd)+'})()',ctx);
+          change();
+          store.setItem('cmu_adherents',JSON.stringify([{id:'A'}]));
+          store.setItem('pending-a',JSON.stringify(['A']));
+          ctx.activeEstablishmentId='centre-B';change();
+          assert.strictEqual(store.getItem('cmu_adherents'),null,'Données A visibles dans B');
+          assert.strictEqual(store.getItem('pending-a'),null,'Attentes A visibles dans B');
+          store.setItem('cmu_adherents',JSON.stringify([{id:'B'}]));
+          ctx.activeEstablishmentId='centre-A';change();
+          assert.strictEqual(JSON.parse(store.getItem('cmu_adherents'))[0].id,'A','Sauvegarde A perdue');
+          assert.strictEqual(JSON.parse(store.getItem('pending-a'))[0],'A','Attentes A perdues');
+          ctx.session.user.id='agent-2';change();
+          assert.strictEqual(store.getItem('cmu_adherents'),null,'Données agent 1 visibles pour agent 2');
+          // Séparation locale des établissements : contrôler les clés de sauvegarde.
+          assert(s.includes('const scope=session.user.id+":"+activeEstablishmentId'),'Clé de périmètre utilisateur/établissement absente');
+          assert(s.includes('"cmu_backup:"+previous+":"+key'),'Sauvegarde du périmètre précédent absente');
+          assert(s.includes('"cmu_backup:"+scope+":"+key'),'Restauration du périmètre courant absente');
+          assert(s.includes('.eq("establishment_id",activeEstablishmentId)'),'Filtrage Supabase par établissement absent');
+          assert(s.includes('const requestedEstablishmentId=activeEstablishmentId'),'Capture du centre avant réception absente');
+          assert(s.includes('if(activeEstablishmentId!==requestedEstablishmentId)return'),'Protection contre réception tardive d’un autre centre absente');
+          assert(s.includes('const pushEstablishmentId=activeEstablishmentId'),'Périmètre envoi non figé');
+          assert(s.includes('establishment_id:pushEstablishmentId'),'Envoi non lié au centre initial');
+          assert(s.includes('localStorage.getItem("cmu_tenant_scope")!==pushScope'),'Protection changement de compte absente');
+          assert(s.includes('window.addEventListener("online"'),'Relance à la reconnexion absente');
+          assert(s.includes('document.addEventListener("visibilitychange"'),'Relance au retour sur l’application absente');
+          assert(s.includes('modification(s) locale(s) à synchroniser'),'Message explicite sur les modifications en attente absent');
+          assert(s.includes('const blockedPassages=requestedPassages.length-passagesToPush.length'),'Détection des passages bloqués absente');
+          assert(s.includes('passage(s) en attente : adhérent introuvable sur le serveur'),'Message sur les passages bloqués absent');
+          // Vérifier réellement le filtrage des passages sans base de données payante.
+          const passageFilter=s.match(/const passagesToPush=requestedPassages\.filter\(([^\n]+)\);/);
+          assert(passageFilter,'Filtrage des passages introuvable');
+          const runPassageFilter=(requestedPassages,ids)=>vm.runInNewContext(
+            'requestedPassages.filter('+passageFilter[1]+')',{requestedPassages,ids,String});
+          const samplePassages=[{id:'p1',adherentId:'a1'},{id:'p2',adherentId:'a2'}];
+          const accepted=runPassageFilter(samplePassages,new Map([['a1','uuid-1']]));
+          assert.strictEqual(accepted.length,1,'Un passage orphelin a été transmis');
+          assert.strictEqual(accepted[0].id,'p1','Le passage valide a été perdu');
+          assert.strictEqual(samplePassages.length-accepted.length,1,'Décompte des passages bloqués incorrect');
+
+
+
+
+
+
+          assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
+          assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
+          assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
+          // Exécuter le véritable parseur QR de l'application sur des cas valides et hostiles.
+          const parserStart=s.indexOf('function parseCode(raw){',s.indexOf('/* CMU QR V15.6'));
+          const parserEnd=s.indexOf(' function status(t)',parserStart);
+          assert(parserStart>=0&&parserEnd>parserStart,'Parseur QR introuvable');
+          const parseCode=vm.runInNewContext(parserStart>=0&&parserEnd>parserStart?
+            s.slice(parserStart,parserEnd)+';parseCode':'(()=>null)',{URL});
+          assert.strictEqual(parseCode('https://scancarte.sunucsu.sn/?code=AB123456'),'AB123456');
+          assert.strictEqual(parseCode('https://carte.sencsu.sn/?code=ab123456'),'AB123456');
+          assert.strictEqual(parseCode('http://carte.sencsu.sn/?code=W2300Q7750'),'W2300Q7750');
+          assert.strictEqual(parseCode('http://scancarte.sunucsu.sn/?code=AB123456'),'AB123456');
+          assert.strictEqual(parseCode('ab123456'),'AB123456');
+
+          // Tester la véritable application du QR avec un DOM fictif.
+          const applyStart=s.indexOf(' function apply(raw,fromCamera=false){',parserEnd);
+          const applyEnd=s.indexOf(' function stop(){',applyStart);
+          assert(applyStart>=0&&applyEnd>applyStart,'Fonction apply QR introuvable');
+          const els={
+            'new-numero':{value:''},'cmu-qr-manual':{value:''},
+            'cmu-qr-official':{href:'',style:{display:'none'}},
+            'cmu-qr-status':{textContent:''},
+            'cmu-coverage-state':{textContent:'Ancien statut'},
+            'cmu-coverage-start':{textContent:'01/01/2020'},
+            'cmu-coverage-end':{textContent:'31/12/2020'}
+          };
+          let stops=0;
+          const apply=vm.runInNewContext(s.slice(applyStart,applyEnd)+';apply',
+            {parseCode,URL,encodeURIComponent,$:id=>els[id],status:t=>{els['cmu-qr-status'].textContent=t},stop:()=>stops++});
+          assert.strictEqual(apply('https://carte.sencsu.sn/?code=Z8991E3303'),true);
+          assert.strictEqual(els['new-numero'].value,'Z8991E3303');
+          assert.strictEqual(els['cmu-coverage-state'].textContent,'Non vérifiée','Ancien statut de couverture conservé');
+          assert.strictEqual(els['cmu-coverage-start'].textContent,'—','Ancien début de couverture conservé');
+          assert.strictEqual(els['cmu-coverage-end'].textContent,'—','Ancienne fin de couverture conservée');
+          assert.strictEqual(els['cmu-qr-manual'].value,'Z8991E3303');
+          assert.strictEqual(els['cmu-qr-official'].href,'https://carte.sencsu.sn/?code=Z8991E3303');
+          assert.strictEqual(stops,1,'Arrêt caméra non déclenché');
+          const previous=els['new-numero'].value;
+          assert.strictEqual(apply('https://evil.example/?code=CHANGED'),false);
+          assert.strictEqual(els['new-numero'].value,previous,'QR invalide a changé le numéro');
+          assert.strictEqual(stops,1,'QR invalide a interrompu la caméra');
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://carte.sencsu.sn/?code=Z8991E3303','QR invalide a modifié le lien officiel');
+          assert(els['cmu-qr-status'].textContent.includes('Code non reconnu'),'Erreur QR non signalée');
+          assert.strictEqual(apply('https://scancarte.sunucsu.sn/?code=AB123456'),true);
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://scancarte.sunucsu.sn/?code=AB123456','Domaine officiel du QR non conservé');
+          assert.strictEqual(stops,2,'Arrêt caméra absent après seconde lecture');
+          assert.strictEqual(apply('http://carte.sencsu.sn/?code=W2300Q7750',true),true);
+          assert.strictEqual(els['new-numero'].value,'W2300Q7750');
+          assert.strictEqual(els['cmu-qr-official'].href,'https://carte.sencsu.sn/?code=W2300Q7750','Vérification HTTP non convertie en HTTPS');
+          // La saisie manuelle doit être soumise aux mêmes règles que le QR.
+          assert.strictEqual(apply('z8991e3303'),true,'Immatriculation manuelle valide refusée');
+          assert.strictEqual(els['new-numero'].value,'Z8991E3303','Normalisation manuelle incorrecte');
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://carte.sencsu.sn/?code=Z8991E3303','Lien manuel incorrect');
+          assert.strictEqual(apply('CSU/197780/1'),false,'Code assuré accepté comme immatriculation');
+          assert.strictEqual(els['new-numero'].value,'Z8991E3303','Code assuré a écrasé immatriculation');
+          assert.strictEqual(apply(''),false,'Code vide accepté');
+
+
+          for(const bad of [
+            'http://carte.sencsu.sn.evil.example/?code=AB123456',
+            'ftp://carte.sencsu.sn/?code=AB123456',
+            'https://carte.sencsu.sn.evil.example/?code=AB123456',
+            'https://evil.example/?code=AB123456',
+            'https://carte.sencsu.sn/?code=abc%20def',
+            'https://carte.sencsu.sn/?code=abc',
+            'javascript:alert(1)'
+          ])assert.strictEqual(parseCode(bad),null,'QR dangereux accepté : '+bad);
+
+          assert(s.includes('$("dlg-add-adherent").addEventListener("close",stop)'),'Arrêt caméra à la fermeture absent');
+          const qrScript=s.slice(s.indexOf('/* CMU QR V15.6'),s.lastIndexOf('</script>'));
+          assert(!/localStorage\.setItem|supabase\.from|fetch\(/.test(qrScript),'Le scanner ne doit pas enregistrer ou transmettre de données');
+          assert(!/codeAssure|code_assure|code-assure/i.test(qrScript),'Le scanner ne doit pas modifier le code assuré');
+          assert(s.includes('document.getElementById("new-numero")')||s.includes('$("new-numero").value=code'),'Affectation immatriculation absente');
+          assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Restriction domaines absente');
+          const scripts=[...s.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+          for(const [,code] of scripts){if(code.trim())new vm.Script(code)}
+          assert(scripts.length>0,'Aucun script');
+          console.log('Vérifications statiques OK ('+scripts.length+' scripts).');
+          NODE

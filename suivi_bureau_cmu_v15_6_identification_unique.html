@@ -180,7 +180,8 @@ dialog{border:0;border-radius:16px;padding:0;width:88%;max-width:380px}dialog::b
 <p class="label">Photo de l'adhérent</p>
 <div class="photo-picker"><div class="photo-box" id="new-photo-box">Aucune photo</div><div><div class="btn-row"><label class="btn-photo" for="new-photo-input">Prendre une photo</label><label class="btn-photo" for="new-gallery-input">Galerie</label></div><p class="photo-hint">La photo sera conservée avec la fiche.</p></div></div>
 <input type="file" accept="image/*" capture="environment" id="new-photo-input" hidden><input type="file" accept="image/*" id="new-gallery-input" hidden>
-<p class="label">Prénom</p><input id="new-prenom" type="text"><p class="label">Nom</p><input id="new-nom" type="text"><p class="label">N° immatriculation</p><input id="new-numero" type="text"><p class="label">Téléphone</p><input id="new-telephone" type="text"><p class="label">Genre</p><div class="pill-group gender-group"><div class="pill" id="new-gender-f">F</div><div class="pill" id="new-gender-m">M</div></div><p class="label">Type d'assuré</p><div class="pill-group insurance-group"><div class="pill" id="new-insurance-classique">Classique (carte)</div><div class="pill" id="new-insurance-sesame">Plan Sésame</div><div class="pill" id="new-insurance-cec">CEC (Carte d’égalité des chances)</div></div><p class="err" id="err-new-profile">Choisissez le sexe F/M et le type d'assuré.</p><p class="err" id="err-new-nom">Le prénom et le nom sont requis.</p><div class="adherent-save-actions"><button type="button" class="btn-primary" id="btn-confirm-add-adherent">Ajouter l'adhérent</button><button type="button" class="btn-secondary" id="btn-cancel-add-adherent">Annuler</button></div></div></dialog>
+<div class="doc-reader" id="cmu-qr-module"><p class="doc-reader-title">Identification par QR code SunuCSU</p><p class="photo-hint">Le QR code renseigne uniquement le numéro d’immatriculation de la carte. Le QR code ne fournit que le numéro d’immatriculation. Vérifiez les autres champs sur SunuCSU avant de les saisir.</p><button type="button" class="btn-secondary" id="cmu-qr-start">📷 Scanner le QR code</button><video id="cmu-qr-video" autoplay playsinline muted style="display:none;width:100%;border-radius:10px;margin-top:8px"></video><button type="button" class="btn-secondary" id="cmu-qr-stop" style="display:none">Arrêter la caméra</button><p class="label" style="margin-top:10px">Coller le lien ou le code de la carte</p><input id="cmu-qr-manual" type="text" autocomplete="off" placeholder="Ex. Z8991E3303"><button type="button" class="btn-secondary" id="cmu-qr-apply">Utiliser ce numéro d’immatriculation</button><p id="cmu-qr-status" class="photo-hint" role="status"></p><div id="cmu-coverage-panel" role="status" aria-live="polite" style="margin-top:10px;padding:10px;border:1px solid #d6dfdc;border-radius:8px"><strong>Couverture : <span id="cmu-coverage-state">Non vérifiée</span></strong><p class="photo-hint" style="margin:6px 0">Début : <span id="cmu-coverage-start">—</span> · Fin : <span id="cmu-coverage-end">—</span></p><p class="photo-hint" style="margin:0">Le QR code seul ne confirme ni l’identité ni la validité. Consultez le portail officiel.</p></div><a id="cmu-qr-official" target="_blank" rel="noopener noreferrer" style="display:none;font-size:13px;color:#0F6B5C">Vérifier sur le portail officiel SunuCSU</a></div>
+<p class="label">Nom</p><input id="new-nom" type="text"><p class="label">Prénoms</p><input id="new-prenom" type="text"><p class="label">N° immatriculation</p><input id="new-numero" type="text"><p class="label">Date de naissance</p><input id="new-birth" type="date"><p class="photo-hint">Vérifiez le nom, les prénoms et la date de naissance sur SunuCSU. Le QR code renseigne uniquement le numéro d’immatriculation.</p><p class="label">Téléphone</p><input id="new-telephone" type="text"><p class="label">Genre</p><div class="pill-group gender-group"><div class="pill" id="new-gender-f">F</div><div class="pill" id="new-gender-m">M</div></div><p class="label">Type d'assuré</p><div class="pill-group insurance-group"><div class="pill" id="new-insurance-classique">Classique (carte)</div><div class="pill" id="new-insurance-sesame">Plan Sésame</div><div class="pill" id="new-insurance-cec">CEC (Carte d’égalité des chances)</div></div><p class="err" id="err-new-profile">Choisissez le sexe F/M et le type d'assuré.</p><p class="err" id="err-new-nom">Le prénom et le nom sont requis.</p><div class="adherent-save-actions"><button type="button" class="btn-primary" id="btn-confirm-add-adherent">Ajouter l'adhérent</button><button type="button" class="btn-secondary" id="btn-cancel-add-adherent">Annuler</button></div></div></dialog>
 <dialog id="dlg-confirm"><div class="dialog-body"><h3>Confirmation</h3><p id="confirm-message"></p><div class="dialog-actions"><button class="btn-secondary" id="confirm-no">Annuler</button><button class="btn-primary" id="confirm-yes">Continuer</button></div></div></dialog>
 <dialog id="dlg-accounts"><div class="dialog-body"><h3>Comptes agents</h3><div id="accounts-list"></div><p class="label">Nouvel identifiant</p><input id="acc-id" type="text"><p class="label">Mot de passe</p><input id="acc-pass" type="password"><p class="err" id="err-acc">Identifiant et mot de passe requis ou déjà utilisé.</p><button class="btn-primary" id="btn-add-account">Ajouter ce compte</button><button class="btn-secondary" id="btn-close-accounts">Fermer</button></div></dialog>
 </div>
@@ -977,7 +978,7 @@ function resetAdherentDialog(){
   editingAdherentId=null;
   document.getElementById("adherent-dialog-title").textContent="Nouvel adhérent";
   document.getElementById("btn-confirm-add-adherent").textContent="Ajouter l’adhérent";
-  ["new-prenom","new-nom","new-numero","new-telephone"].forEach(x=>document.getElementById(x).value="");
+  ["new-prenom","new-nom","new-numero","new-birth","new-telephone"].forEach(x=>document.getElementById(x).value="");
   selectNewGender(null);selectNewInsurance(null);
   const b=document.getElementById("new-photo-box");b.textContent="Aucune photo";b.dataset.photo="";
   hide("err-new-nom");hide("err-new-profile");
@@ -1021,6 +1022,7 @@ function editAdherent(id){
   document.getElementById("new-prenom").value=a.prenom||"";
   document.getElementById("new-nom").value=a.nom||"";
   document.getElementById("new-numero").value=a.numero||"";
+  document.getElementById("new-birth").value=a.birthDate||"";
   document.getElementById("new-telephone").value=a.telephone||"";
   selectNewGender(a.gender||null);selectNewInsurance(a.insuranceType||null);
   const b=document.getElementById("new-photo-box");
@@ -1044,6 +1046,8 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
   const ng=document.getElementById("new-gender-f").dataset.selected?"F":document.getElementById("new-gender-m").dataset.selected?"M":"";
   const ni=document.getElementById("new-insurance-classique").dataset.selected?"Classique":document.getElementById("new-insurance-sesame").dataset.selected?"Plan Sésame":document.getElementById("new-insurance-cec").dataset.selected?"CEC":"";
   if(!ng||!ni){show("err-new-profile");toast((editingAdherentId?"Mise à jour impossible":"Ajout impossible")+" : F/M et type d’assuré requis","error");return}
+  const birthDate=f("new-birth");
+  if(birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || Number.isNaN(Date.parse(birthDate)) || new Date(birthDate).toISOString().slice(0,10)!==birthDate || birthDate>new Date().toLocaleDateString("en-CA",{timeZone:"Africa/Dakar"}))){toast("Date de naissance invalide ou future","error");document.getElementById("new-birth").focus();return}
   const enteredNumero=f("new-numero");
   if(!enteredNumero){toast("N° d’immatriculation requis pour identifier le patient","error");document.getElementById("new-numero").focus();return}
   const sameNumero=adherents.find(x=>normNumero(x.numero)===normNumero(enteredNumero)&&x.id!==editingAdherentId);
@@ -1052,8 +1056,9 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
   const photo=document.getElementById("new-photo-box").dataset.photo||"";
   if(editingAdherentId){
     const a=adherents.find(x=>x.id===editingAdherentId);if(!a)return;
-    Object.assign(a,{prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),gender:ng,insuranceType:ni,photo});
+    Object.assign(a,{prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),birthDate:f("new-birth"),gender:ng,insuranceType:ni,photo});
     const updatedId=editingAdherentId;
+    if(typeof PENDING_A_KEY!=="undefined"){const pending=pendingSet(PENDING_A_KEY);pending.add(String(updatedId));savePending(PENDING_A_KEY,pending)}
     save();document.getElementById("dlg-add-adherent").close();
     const os=document.getElementById("new-ocr-status");if(os)os.remove();
     editingAdherentId=null;
@@ -1061,7 +1066,8 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
     toast("✓ Dossier adhérent mis à jour — aucun nouveau passage créé");
   }else{
     const newId=Date.now().toString(36);
-    adherents.push({id:newId,prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),gender:ng,insuranceType:ni,photo});
+    adherents.push({id:newId,prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),birthDate:f("new-birth"),gender:ng,insuranceType:ni,photo});
+    if(typeof PENDING_A_KEY!=="undefined"){const pending=pendingSet(PENDING_A_KEY);pending.add(String(newId));savePending(PENDING_A_KEY,pending)}
     save();document.getElementById("dlg-add-adherent").close();loadAdherentToPassage(newId);
     resetAdherentDialog();
     const os=document.getElementById("new-ocr-status");if(os)os.remove();
@@ -1594,27 +1600,36 @@ function mergeById(remote,local,pending){
 }
 async function cloudPush(forceAll=false){
  if(!activeEstablishmentId)return;if(cloudBusy){cloudPushQueued=true;return} cloudBusy=true;
+ const pushEstablishmentId=activeEstablishmentId, pushScope=localStorage.getItem("cmu_tenant_scope");
  try{
   const {data:{user}}=await cloud.auth.getUser(); if(!user)return;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
   const s=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const adherentsToPush=forceAll?s.a:s.a.filter(x=>pa.has(String(x.id)));
   if(adherentsToPush.length){
-   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:activeEstablishmentId}));
+   const rows=adherentsToPush.map(x=>({legacy_id:String(x.id),first_name:x.prenom||"",last_name:x.nom||"",registration_number:x.numero||("LOCAL-"+x.id),phone:x.telephone||null,birth_date:x.birthDate||null,gender:x.gender||null,insurance_type:(x.insuranceType||"").toLowerCase().includes("sésame")||(x.insuranceType||"").toLowerCase().includes("sesame")?"plan_sesame":x.insuranceType==="CEC"?"cec":"classique",created_by:user.id,establishment_id:pushEstablishmentId}));
    const r=await cloud.from("adherents").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",activeEstablishmentId); if(ar.error)throw ar.error;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
+  const ar=await cloud.from("adherents").select("id,legacy_id").eq("establishment_id",pushEstablishmentId); if(ar.error)throw ar.error;
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
   const ids=new Map(ar.data.map(x=>[String(x.legacy_id),x.id]));
-  const passagesToPush=(forceAll?s.p:s.p.filter(x=>pp.has(String(x.id)))).filter(x=>ids.has(String(x.adherentId)));
+  const requestedPassages=forceAll?s.p:s.p.filter(x=>pp.has(String(x.id)));
+  const passagesToPush=requestedPassages.filter(x=>ids.has(String(x.adherentId)));
+  const blockedPassages=requestedPassages.length-passagesToPush.length;
   if(passagesToPush.length){
-   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:activeEstablishmentId,created_at:x.date||new Date().toISOString()}));
+   const rows=passagesToPush.map(x=>({legacy_id:String(x.id),adherent_legacy_id:String(x.adherentId),adherent_id:ids.get(String(x.adherentId)),passage_type:x.category==="pharmacie"?"pharmacie":"prestation",prestation:(x.prestations||[]).join(", ")||null,prescriber:x.prescriber||null,pharmacy_name:x.pharmacy?.pharmacie||null,health_structure:x.pharmacy?.structureSante||null,coverage_rate:x.pharmacy?.tauxPEC||null,voucher_number:x.pharmacy?.bonNumero||null,issued_on:x.pharmacy?.dateEmission||null,pharmacy_details:{...x.pharmacy,prestations:x.prestations||[],complementaryActs:x.complementaryActs||[],gender:x.gender,insuranceType:x.insuranceType,agent:x.agent,date:x.date},created_by:user.id,establishment_id:pushEstablishmentId,created_at:x.date||new Date().toISOString()}));
    const r=await cloud.from("passages").upsert(rows,{onConflict:"legacy_id"}); if(r.error)throw r.error;
   }
-  if(forceAll){pa.clear();pp.clear()}else{
-   adherentsToPush.forEach(x=>pa.delete(String(x.id)));
-   passagesToPush.forEach(x=>pp.delete(String(x.id)));
-  }
-  savePending(PENDING_A_KEY,pa);savePending(PENDING_P_KEY,pp);cloudState("Synchronisé ✓");
- }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");cloudState(duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e),12000);}
+  if(activeEstablishmentId!==pushEstablishmentId||localStorage.getItem("cmu_tenant_scope")!==pushScope)return;
+  // Ne jamais acquitter une modification locale arrivée pendant la requête réseau.
+  const latest=localSnapshot(),latestA=new Map(latest.a.map(x=>[String(x.id),JSON.stringify(x)])),latestP=new Map(latest.p.map(x=>[String(x.id),JSON.stringify(x)]));
+  const pendingA=pendingSet(PENDING_A_KEY),pendingP=pendingSet(PENDING_P_KEY);
+  adherentsToPush.forEach(x=>{if(latestA.get(String(x.id))===JSON.stringify(x))pendingA.delete(String(x.id));else cloudPushQueued=true});
+  passagesToPush.forEach(x=>{if(latestP.get(String(x.id))===JSON.stringify(x))pendingP.delete(String(x.id));else cloudPushQueued=true});
+  savePending(PENDING_A_KEY,pendingA);savePending(PENDING_P_KEY,pendingP);
+  cloudState(blockedPassages?blockedPassages+" passage(s) en attente : adhérent introuvable sur le serveur":pendingA.size||pendingP.size?"Modifications locales en attente":"Synchronisé ✓",blockedPassages?12000:3500);
+ }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");const pendingCount=pendingSet(PENDING_A_KEY).size+pendingSet(PENDING_P_KEY).size;cloudState((duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e))+" — "+pendingCount+" modification(s) locale(s) à synchroniser",30000);}
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function fetchAllCloudRows(table){
@@ -1631,13 +1646,15 @@ async function fetchAllCloudRows(table){
 }
 async function cloudPull(){
  if(!activeEstablishmentId)return;
+ const requestedEstablishmentId=activeEstablishmentId;
  if(cloudBusy){cloudPullQueued=true;return} cloudBusy=true;
  try{
   const old=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const [allAdherents,allPassages]=await Promise.all([fetchAllCloudRows("adherents"),fetchAllCloudRows("passages")]);
+  if(activeEstablishmentId!==requestedEstablishmentId)return; // Une autre session/établissement a été sélectionné pendant la requête.
   const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
-  const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
+  const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",birthDate:x.birth_date||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
   const remoteP=rp.data.map(x=>{const d=x.pharmacy_details||{};return {id:x.legacy_id||x.id,adherentId:x.adherent_legacy_id||x.adherent_id,date:d.date||x.created_at,agent:d.agent||"",category:x.passage_type==="pharmacie"?"pharmacie":"soins",gender:d.gender||"",insuranceType:d.insuranceType||"",prescriber:x.prescriber||"",pharmacy:x.passage_type==="pharmacie"?{...d,pharmacie:x.pharmacy_name||d.pharmacie||""}:null,pharmacyName:x.pharmacy_name||d.pharmacie||"",prestations:d.prestations||(x.prestation?[x.prestation]:[]),complementaryActs:d.complementaryActs||[]}});
   // Protect local entries during a delayed cloud response. Re-check pending IDs after network awaits.
   const freshA=pendingSet(PENDING_A_KEY),freshP=pendingSet(PENDING_P_KEY);
@@ -1660,6 +1677,9 @@ async function cloudStart(session){
  const count=countRes.count;const s=localSnapshot();await cloudPull();
  if(!cloudSubscribed){cloudSubscribed=true;cloud.channel("cmu-live").on("postgres_changes",{event:"*",schema:"public",table:"adherents"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).on("postgres_changes",{event:"*",schema:"public",table:"passages"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).subscribe()}
 }
+// Reprendre automatiquement les écritures locales après une coupure réseau.
+window.addEventListener("online",()=>{if(activeEstablishmentId&&(pendingSet(PENDING_A_KEY).size||pendingSet(PENDING_P_KEY).size))setTimeout(()=>cloudPush(),250)});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&activeEstablishmentId&&navigator.onLine&&(pendingSet(PENDING_A_KEY).size||pendingSet(PENDING_P_KEY).size))setTimeout(()=>cloudPush(),250)});
 const localSave=save; save=function(){const before=localSnapshot();const ok=localSave();if(ok===false)return false;const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100);return true};
 const localDeleteAdherent=deleteAdherent;
 deleteAdherent=async function(id){
@@ -1719,4 +1739,60 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
 })();
 </script>
 
+<script>
+/* CMU QR V15.6 — identification du numéro de carte uniquement; aucun accès automatisé aux données de santé */
+(function(){
+ const $=id=>document.getElementById(id);
+ let stream=null,active=false;
+ function parseCode(raw){
+  const value=String(raw||"").trim();
+  if(/^[A-Z0-9]{6,24}$/i.test(value))return value.toUpperCase();
+  try{
+   const url=new URL(value);
+   if(!["http:","https:"].includes(url.protocol)||!["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(url.hostname.toLowerCase())||url.username||url.password||url.port)return null;
+   const code=url.searchParams.get("code")||"";
+   return /^[A-Z0-9]{6,24}$/i.test(code)?code.toUpperCase():null;
+  }catch(_){return null}
+ }
+ function status(t){$("cmu-qr-status").textContent=t}
+ function apply(raw,fromCamera=false){
+  const code=parseCode(raw);
+  if(!code){status(fromCamera?"QR détecté, lecture non reconnue : recherche en cours. Maintenez la carte devant la caméra.":"Code non reconnu : saisissez le code de la carte ou un lien SunuCSU officiel.");return false}
+  $("cmu-coverage-state").textContent="Non vérifiée";
+  $("cmu-coverage-start").textContent="—";
+  $("cmu-coverage-end").textContent="—";
+  $("new-numero").value=code;
+  $("cmu-qr-manual").value=code;
+  const a=$("cmu-qr-official");let officialHost="carte.sencsu.sn";try{const u=new URL(String(raw).trim());if(["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(u.hostname.toLowerCase()))officialHost=u.hostname.toLowerCase()}catch(_){}a.href="https://"+officialHost+"/?code="+encodeURIComponent(code);a.style.display="inline-block";
+  status("Numéro d’immatriculation renseigné : "+code+". Vérifiez l’identité et la validité sur le portail officiel avant l’enregistrement.");
+  stop();return true;
+ }
+ function stop(){
+  active=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $("cmu-qr-video").style.display="none";$("cmu-qr-stop").style.display="none";
+ }
+ async function start(){
+  if(!window.isSecureContext){status("La caméra nécessite une connexion HTTPS.");return}
+  if(!("BarcodeDetector" in window)){status("Scanner caméra indisponible dans ce navigateur. Collez le lien ou le code de la carte.");return}
+  try{
+   const formats=await BarcodeDetector.getSupportedFormats();
+   if(!formats.includes("qr_code")){status("Lecture QR non prise en charge sur cet appareil.");return}
+   const detector=new BarcodeDetector({formats:["qr_code"]});
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+   const video=$("cmu-qr-video");video.srcObject=stream;video.style.display="block";$("cmu-qr-stop").style.display="block";
+   await video.play();active=true;status("Présentez le QR code devant la caméra.");
+   const loop=async()=>{
+    if(!active)return;
+    try{for(const item of await detector.detect(video)){if(apply(item.rawValue,true))return}}catch(_){}
+    if(active)setTimeout(loop,250);
+   };loop();
+  }catch(e){stop();status("Caméra inaccessible : vérifiez les autorisations ou utilisez la saisie manuelle.")}
+ }
+ $("cmu-qr-start").addEventListener("click",start);
+ $("cmu-qr-stop").addEventListener("click",stop);
+ $("cmu-qr-apply").addEventListener("click",()=>apply($("cmu-qr-manual").value));
+ $("dlg-add-adherent").addEventListener("close",stop);
+})();
+</script>
 </body></html>
