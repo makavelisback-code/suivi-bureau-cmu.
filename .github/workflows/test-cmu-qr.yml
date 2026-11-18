@@ -124,6 +124,24 @@ jobs:
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
           assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
+          // Exécuter le véritable parseur QR de l'application sur des cas valides et hostiles.
+          const parserStart=s.indexOf('function parseCode(raw){',s.indexOf('/* CMU QR V15.6'));
+          const parserEnd=s.indexOf(' function status(t)',parserStart);
+          assert(parserStart>=0&&parserEnd>parserStart,'Parseur QR introuvable');
+          const parseCode=vm.runInNewContext(parserStart>=0&&parserEnd>parserStart?
+            s.slice(parserStart,parserEnd)+';parseCode':'(()=>null)',{URL});
+          assert.strictEqual(parseCode('https://scancarte.sunucsu.sn/?code=AB123456'),'AB123456');
+          assert.strictEqual(parseCode('https://carte.sencsu.sn/?code=ab123456'),'AB123456');
+          assert.strictEqual(parseCode('ab123456'),'AB123456');
+          for(const bad of [
+            'http://carte.sencsu.sn/?code=AB123456',
+            'https://carte.sencsu.sn.evil.example/?code=AB123456',
+            'https://evil.example/?code=AB123456',
+            'https://carte.sencsu.sn/?code=abc%20def',
+            'https://carte.sencsu.sn/?code=abc',
+            'javascript:alert(1)'
+          ])assert.strictEqual(parseCode(bad),null,'QR dangereux accepté : '+bad);
+
           assert(s.includes('$("dlg-add-adherent").addEventListener("close",stop)'),'Arrêt caméra à la fermeture absent');
           const qrScript=s.slice(s.indexOf('/* CMU QR V15.6'),s.lastIndexOf('</script>'));
           assert(!/localStorage\.setItem|supabase\.from|fetch\(/.test(qrScript),'Le scanner ne doit pas enregistrer ou transmettre de données');
