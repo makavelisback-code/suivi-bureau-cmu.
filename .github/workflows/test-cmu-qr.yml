@@ -76,6 +76,21 @@ jobs:
           assert.strictEqual(changed.queued,true,'Nouvelle synchronisation non programmée');
           const unchanged=runAck('2000-02-29','2000-02-29');
           assert.deepStrictEqual(unchanged.persisted,[],'Modification déjà envoyée non acquittée');
+          // Exécuter la fonction réelle de fusion des données reçues et locales.
+          const mergeStart=s.indexOf('function mergeById(remote,local,pending){');
+          const mergeEnd=s.indexOf('async function cloudPush(',mergeStart);
+          assert(mergeStart>=0&&mergeEnd>mergeStart,'Fusion des dossiers introuvable');
+          const merge=vm.runInNewContext(s.slice(mergeStart,mergeEnd)+';mergeById');
+          const remote=[{id:'a',birthDate:'2000-01-01'},{id:'b',birthDate:'1999-01-01'}];
+          const local=[{id:'a',birthDate:'2001-02-02'},{id:'c',birthDate:'2002-03-03'}];
+          const merged=merge(remote,local,new Set(['a','c']));
+          assert.strictEqual(merged.find(x=>x.id==='a').birthDate,'2001-02-02','Modification locale en attente écrasée');
+          assert.strictEqual(merged.find(x=>x.id==='c').birthDate,'2002-03-03','Nouvel adhérent local perdu');
+          assert.strictEqual(merged.find(x=>x.id==='b').birthDate,'1999-01-01','Dossier serveur perdu');
+          const noPending=merge(remote,local,new Set());
+          assert.strictEqual(noPending.find(x=>x.id==='a').birthDate,'2000-01-01','Donnée distante non retenue');
+          assert(!noPending.some(x=>x.id==='c'),'Ancien dossier local ressuscité');
+
 
 
 
