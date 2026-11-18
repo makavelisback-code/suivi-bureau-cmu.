@@ -90,6 +90,21 @@ jobs:
           const noPending=merge(remote,localMergeRows,new Set());
           assert.strictEqual(noPending.find(x=>x.id==='a').birthDate,'2000-01-01','Donnée distante non retenue');
           assert(!noPending.some(x=>x.id==='c'),'Ancien dossier local ressuscité');
+          // Scénario de reconnexion : un appareil hors ligne ne doit pas
+          // ressusciter un dossier supprimé sur le serveur.
+          const deletedRemote=[{id:'a',nom:'Dossier actif'}];
+          const staleLocal=[{id:'a',nom:'Ancienne copie'},{id:'deleted',nom:'Dossier supprimé'}];
+          const afterReconnect=merge(deletedRemote,staleLocal,new Set());
+          assert.strictEqual(afterReconnect.length,1,'Un dossier supprimé est réapparu');
+          assert.strictEqual(afterReconnect[0].nom,'Dossier actif','Une copie obsolète a remplacé le serveur');
+          // Inversement, une modification locale non envoyée doit rester intacte.
+          const offlineChange=merge(deletedRemote,staleLocal,new Set(['a']));
+          assert.strictEqual(offlineChange.find(x=>x.id==='a').nom,'Ancienne copie','Modification hors ligne perdue');
+          // IDs numériques historiques et chaînes doivent être traités pareil.
+          const legacy=merge([{id:42,nom:'Serveur'}],[{id:'42',nom:'Modification locale'}],new Set(['42']));
+          assert.strictEqual(legacy.length,1,'Doublon créé pour un identifiant historique');
+          assert.strictEqual(legacy[0].nom,'Modification locale','Identifiant historique non fusionné');
+
           // Séparation locale des établissements : contrôler les clés de sauvegarde.
           assert(s.includes('const scope=session.user.id+":"+activeEstablishmentId'),'Clé de périmètre utilisateur/établissement absente');
           assert(s.includes('"cmu_backup:"+previous+":"+key'),'Sauvegarde du périmètre précédent absente');
