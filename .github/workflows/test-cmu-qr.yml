@@ -203,7 +203,7 @@ jobs:
           };
           let stops=0;
           const apply=vm.runInNewContext(s.slice(applyStart,applyEnd)+';apply',
-            {parseCode,URL,encodeURIComponent,$:id=>els[id],stop:()=>stops++});
+            {parseCode,URL,encodeURIComponent,$:id=>els[id],status:t=>{els['cmu-qr-status'].textContent=t},stop:()=>stops++});
           assert.strictEqual(apply('https://carte.sencsu.sn/?code=Z8991E3303'),true);
           assert.strictEqual(els['new-numero'].value,'Z8991E3303');
           assert.strictEqual(els['cmu-qr-manual'].value,'Z8991E3303');
