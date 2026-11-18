@@ -52,6 +52,31 @@ jobs:
           assert.strictEqual(invalid('2026-02-30'),true,'Date inexistante acceptée');
           assert.strictEqual(invalid('2099-01-01'),true,'Date future acceptée');
           assert.strictEqual(invalid('2000/02/29'),true,'Format invalide accepté');
+          // Exécuter la logique réelle d'acquittement des modifications en cours de synchronisation.
+          const start=s.indexOf('  const latest=localSnapshot(),latestA=');
+          const end=s.indexOf('  cloudState(pendingA.size||pendingP.size?',start);
+          assert(start>=0&&end>start,'Protection des modifications concurrentes absente');
+          const ackCode=s.slice(start,end);
+          const runAck=(sent,current)=>{
+            const pending=new Set(['benef-1']);
+            let persisted=null;
+            const ctx={
+              localSnapshot:()=>({a:[{id:'benef-1',birthDate:current}],p:[]}),
+              adherentsToPush:[{id:'benef-1',birthDate:sent}],
+              passagesToPush:[],
+              pendingSet:(key)=>new Set(key==='A'?pending:[]),
+              savePending:(key,set)=>{if(key==='A')persisted=[...set]},
+              PENDING_A_KEY:'A',PENDING_P_KEY:'P',cloudPushQueued:false,
+            };
+            vm.runInNewContext(ackCode,ctx);
+            return {persisted,queued:ctx.cloudPushQueued};
+          };
+          const changed=runAck('2000-02-29','2001-03-01');
+          assert.deepStrictEqual(changed.persisted,['benef-1'],'Modification récente perdue');
+          assert.strictEqual(changed.queued,true,'Nouvelle synchronisation non programmée');
+          const unchanged=runAck('2000-02-29','2000-02-29');
+          assert.deepStrictEqual(unchanged.persisted,[],'Modification déjà envoyée non acquittée');
+
 
 
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
