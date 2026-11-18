@@ -29,6 +29,8 @@ jobs:
           assert(s.includes('birth_date:x.birthDate||null'),'Envoi date de naissance vers Supabase absent');
           assert(s.includes('birthDate:x.birth_date||""'),'Relecture date de naissance depuis Supabase absente');
           assert(s.includes('birthDate:f("new-birth")'),'Enregistrement local de la date de naissance absent');
+          assert(s.includes('adherents.push({id:newId')&&s.includes('birthDate:f("new-birth")'),'Date de naissance manquante à la création');
+          assert(s.includes('pending.add(String(newId))')&&s.includes('pending.add(String(updatedId))'),'Mise en attente de synchronisation absente');
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
           assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
