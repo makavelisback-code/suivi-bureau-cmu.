@@ -1056,6 +1056,7 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
     const a=adherents.find(x=>x.id===editingAdherentId);if(!a)return;
     Object.assign(a,{prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),birthDate:f("new-birth"),gender:ng,insuranceType:ni,photo});
     const updatedId=editingAdherentId;
+    if(typeof PENDING_A_KEY!=="undefined"){const pending=pendingSet(PENDING_A_KEY);pending.add(String(updatedId));savePending(PENDING_A_KEY,pending)}
     save();document.getElementById("dlg-add-adherent").close();
     const os=document.getElementById("new-ocr-status");if(os)os.remove();
     editingAdherentId=null;
@@ -1063,7 +1064,8 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
     toast("✓ Dossier adhérent mis à jour — aucun nouveau passage créé");
   }else{
     const newId=Date.now().toString(36);
-    adherents.push({id:newId,prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),gender:ng,insuranceType:ni,photo});
+    adherents.push({id:newId,prenom:p,nom:n,numero:f("new-numero"),telephone:f("new-telephone"),birthDate:f("new-birth"),gender:ng,insuranceType:ni,photo});
+    if(typeof PENDING_A_KEY!=="undefined"){const pending=pendingSet(PENDING_A_KEY);pending.add(String(newId));savePending(PENDING_A_KEY,pending)}
     save();document.getElementById("dlg-add-adherent").close();loadAdherentToPassage(newId);
     resetAdherentDialog();
     const os=document.getElementById("new-ocr-status");if(os)os.remove();
