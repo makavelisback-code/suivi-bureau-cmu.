@@ -1047,7 +1047,7 @@ document.getElementById("btn-confirm-add-adherent").onclick=()=>{
   const ni=document.getElementById("new-insurance-classique").dataset.selected?"Classique":document.getElementById("new-insurance-sesame").dataset.selected?"Plan Sésame":document.getElementById("new-insurance-cec").dataset.selected?"CEC":"";
   if(!ng||!ni){show("err-new-profile");toast((editingAdherentId?"Mise à jour impossible":"Ajout impossible")+" : F/M et type d’assuré requis","error");return}
   const birthDate=f("new-birth");
-  if(birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || birthDate>new Date().toLocaleDateString("en-CA",{timeZone:"Africa/Dakar"}))){toast("Date de naissance invalide ou future","error");document.getElementById("new-birth").focus();return}
+  if(birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || Number.isNaN(Date.parse(birthDate)) || new Date(birthDate).toISOString().slice(0,10)!==birthDate || birthDate>new Date().toLocaleDateString("en-CA",{timeZone:"Africa/Dakar"}))){toast("Date de naissance invalide ou future","error");document.getElementById("new-birth").focus();return}
   const enteredNumero=f("new-numero");
   if(!enteredNumero){toast("N° d’immatriculation requis pour identifier le patient","error");document.getElementById("new-numero").focus();return}
   const sameNumero=adherents.find(x=>normNumero(x.numero)===normNumero(enteredNumero)&&x.id!==editingAdherentId);
