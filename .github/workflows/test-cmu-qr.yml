@@ -220,6 +220,15 @@ jobs:
           assert.strictEqual(els['cmu-qr-official'].href,
             'https://scancarte.sunucsu.sn/?code=AB123456','Domaine officiel du QR non conservé');
           assert.strictEqual(stops,2,'Arrêt caméra absent après seconde lecture');
+          // La saisie manuelle doit être soumise aux mêmes règles que le QR.
+          assert.strictEqual(apply('z8991e3303'),true,'Immatriculation manuelle valide refusée');
+          assert.strictEqual(els['new-numero'].value,'Z8991E3303','Normalisation manuelle incorrecte');
+          assert.strictEqual(els['cmu-qr-official'].href,
+            'https://carte.sencsu.sn/?code=Z8991E3303','Lien manuel incorrect');
+          assert.strictEqual(apply('CSU/197780/1'),false,'Code assuré accepté comme immatriculation');
+          assert.strictEqual(els['new-numero'].value,'Z8991E3303','Code assuré a écrasé immatriculation');
+          assert.strictEqual(apply(''),false,'Code vide accepté');
+
 
           for(const bad of [
             'http://carte.sencsu.sn/?code=AB123456',
