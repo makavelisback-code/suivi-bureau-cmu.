@@ -1639,10 +1639,12 @@ async function fetchAllCloudRows(table){
 }
 async function cloudPull(){
  if(!activeEstablishmentId)return;
+ const requestedEstablishmentId=activeEstablishmentId;
  if(cloudBusy){cloudPullQueued=true;return} cloudBusy=true;
  try{
   const old=localSnapshot(),pa=pendingSet(PENDING_A_KEY),pp=pendingSet(PENDING_P_KEY);
   const [allAdherents,allPassages]=await Promise.all([fetchAllCloudRows("adherents"),fetchAllCloudRows("passages")]);
+  if(activeEstablishmentId!==requestedEstablishmentId)return; // Une autre session/établissement a été sélectionné pendant la requête.
   const ra={data:allAdherents},rp={data:allPassages};
   const photos=new Map(old.a.map(x=>[String(x.id),x.photo]));
   const remoteA=ra.data.map(x=>({id:x.legacy_id||x.id,prenom:x.first_name,nom:x.last_name,numero:(x.registration_number||"").startsWith("LOCAL-")?"":x.registration_number,telephone:x.phone||"",birthDate:x.birth_date||"",gender:x.gender||"",insuranceType:x.insurance_type==="plan_sesame"?"Plan Sésame":x.insurance_type==="cec"?"CEC":"Classique",photo:photos.get(String(x.legacy_id||x.id))||""}));
