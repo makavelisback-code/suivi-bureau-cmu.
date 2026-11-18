@@ -54,7 +54,7 @@ jobs:
           assert.strictEqual(invalid('2000/02/29'),true,'Format invalide accepté');
           // Exécuter la logique réelle d'acquittement des modifications en cours de synchronisation.
           const start=s.indexOf('  const latest=localSnapshot(),latestA=');
-          const end=s.indexOf('  cloudState(pendingA.size||pendingP.size?',start);
+          const end=s.indexOf('  cloudState(blockedPassages?',start);
           assert(start>=0&&end>start,'Protection des modifications concurrentes absente');
           const ackCode=s.slice(start,end);
           const runAck=(sent,current)=>{
