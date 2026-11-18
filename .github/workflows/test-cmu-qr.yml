@@ -102,6 +102,7 @@ jobs:
           assert(s.includes('localStorage.getItem("cmu_tenant_scope")!==pushScope'),'Protection changement de compte absente');
           assert(s.includes('window.addEventListener("online"'),'Relance à la reconnexion absente');
           assert(s.includes('document.addEventListener("visibilitychange"'),'Relance au retour sur l’application absente');
+          assert(s.includes('modification(s) locale(s) à synchroniser'),'Message explicite sur les modifications en attente absent');
 
 
 
