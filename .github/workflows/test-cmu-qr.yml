@@ -90,6 +90,12 @@ jobs:
           const noPending=merge(remote,localMergeRows,new Set());
           assert.strictEqual(noPending.find(x=>x.id==='a').birthDate,'2000-01-01','Donnée distante non retenue');
           assert(!noPending.some(x=>x.id==='c'),'Ancien dossier local ressuscité');
+          // Séparation locale des établissements : contrôler les clés de sauvegarde.
+          assert(s.includes('const scope=session.user.id+":"+activeEstablishmentId'),'Clé de périmètre utilisateur/établissement absente');
+          assert(s.includes('"cmu_backup:"+previous+":"+key'),'Sauvegarde du périmètre précédent absente');
+          assert(s.includes('"cmu_backup:"+scope+":"+key'),'Restauration du périmètre courant absente');
+          assert(s.includes('.eq("establishment_id",activeEstablishmentId)'),'Filtrage Supabase par établissement absent');
+
 
 
 
