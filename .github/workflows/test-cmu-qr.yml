@@ -95,6 +95,8 @@ jobs:
           assert(s.includes('"cmu_backup:"+previous+":"+key'),'Sauvegarde du périmètre précédent absente');
           assert(s.includes('"cmu_backup:"+scope+":"+key'),'Restauration du périmètre courant absente');
           assert(s.includes('.eq("establishment_id",activeEstablishmentId)'),'Filtrage Supabase par établissement absent');
+          assert(s.includes('const requestedEstablishmentId=activeEstablishmentId'),'Capture du centre avant réception absente');
+          assert(s.includes('if(activeEstablishmentId!==requestedEstablishmentId)return'),'Protection contre réception tardive d’un autre centre absente');
 
 
 
