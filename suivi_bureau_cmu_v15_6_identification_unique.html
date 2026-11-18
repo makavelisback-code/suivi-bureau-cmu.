@@ -1627,7 +1627,7 @@ async function cloudPush(forceAll=false){
   passagesToPush.forEach(x=>{if(latestP.get(String(x.id))===JSON.stringify(x))pendingP.delete(String(x.id));else cloudPushQueued=true});
   savePending(PENDING_A_KEY,pendingA);savePending(PENDING_P_KEY,pendingP);
   cloudState(pendingA.size||pendingP.size?"Modifications locales en attente":"Synchronisé ✓");
- }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");cloudState(duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e),12000);}
+ }catch(e){const duplicate=e?.code==="23505"||/duplicate|unique/i.test(e?.message||"");const pendingCount=pendingSet(PENDING_A_KEY).size+pendingSet(PENDING_P_KEY).size;cloudState((duplicate?cloudErrorText("Doublon Supabase",e):cloudErrorText("Erreur envoi Supabase",e))+" — "+pendingCount+" modification(s) locale(s) à synchroniser",30000);}
  finally{cloudBusy=false;if(cloudPushQueued){cloudPushQueued=false;setTimeout(cloudPush,80)}else if(cloudPullQueued){cloudPullQueued=false;setTimeout(cloudPull,120)}}
 }
 async function fetchAllCloudRows(table){
