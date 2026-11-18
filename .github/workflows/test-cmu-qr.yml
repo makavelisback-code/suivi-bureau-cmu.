@@ -201,13 +201,19 @@ jobs:
           const els={
             'new-numero':{value:''},'cmu-qr-manual':{value:''},
             'cmu-qr-official':{href:'',style:{display:'none'}},
-            'cmu-qr-status':{textContent:''}
+            'cmu-qr-status':{textContent:''},
+            'cmu-coverage-state':{textContent:'Ancien statut'},
+            'cmu-coverage-start':{textContent:'01/01/2020'},
+            'cmu-coverage-end':{textContent:'31/12/2020'}
           };
           let stops=0;
           const apply=vm.runInNewContext(s.slice(applyStart,applyEnd)+';apply',
             {parseCode,URL,encodeURIComponent,$:id=>els[id],status:t=>{els['cmu-qr-status'].textContent=t},stop:()=>stops++});
           assert.strictEqual(apply('https://carte.sencsu.sn/?code=Z8991E3303'),true);
           assert.strictEqual(els['new-numero'].value,'Z8991E3303');
+          assert.strictEqual(els['cmu-coverage-state'].textContent,'Non vérifiée','Ancien statut de couverture conservé');
+          assert.strictEqual(els['cmu-coverage-start'].textContent,'—','Ancien début de couverture conservé');
+          assert.strictEqual(els['cmu-coverage-end'].textContent,'—','Ancienne fin de couverture conservée');
           assert.strictEqual(els['cmu-qr-manual'].value,'Z8991E3303');
           assert.strictEqual(els['cmu-qr-official'].href,'https://carte.sencsu.sn/?code=Z8991E3303');
           assert.strictEqual(stops,1,'Arrêt caméra non déclenché');
