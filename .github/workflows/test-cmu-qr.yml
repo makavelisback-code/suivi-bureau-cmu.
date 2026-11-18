@@ -103,6 +103,8 @@ jobs:
           assert(s.includes('window.addEventListener("online"'),'Relance à la reconnexion absente');
           assert(s.includes('document.addEventListener("visibilitychange"'),'Relance au retour sur l’application absente');
           assert(s.includes('modification(s) locale(s) à synchroniser'),'Message explicite sur les modifications en attente absent');
+          assert(s.includes('const blockedPassages=requestedPassages.length-passagesToPush.length'),'Détection des passages bloqués absente');
+          assert(s.includes('passage(s) en attente : adhérent introuvable sur le serveur'),'Message sur les passages bloqués absent');
 
 
 
