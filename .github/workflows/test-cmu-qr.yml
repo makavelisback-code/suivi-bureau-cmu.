@@ -193,7 +193,7 @@ jobs:
           assert.strictEqual(parseCode('ab123456'),'AB123456');
 
           // Tester la véritable application du QR avec un DOM fictif.
-          const applyStart=s.indexOf(' function apply(raw){',parserEnd);
+          const applyStart=s.indexOf(' function apply(raw,fromCamera=false){',parserEnd);
           const applyEnd=s.indexOf(' function stop(){',applyStart);
           assert(applyStart>=0&&applyEnd>applyStart,'Fonction apply QR introuvable');
           const els={
