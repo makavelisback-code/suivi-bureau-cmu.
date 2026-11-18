@@ -1755,9 +1755,9 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
   }catch(_){return null}
  }
  function status(t){$("cmu-qr-status").textContent=t}
- function apply(raw){
+ function apply(raw,fromCamera=false){
   const code=parseCode(raw);
-  if(!code){status("Code non reconnu : saisissez le code de la carte ou un lien SunuCSU officiel.");return false}
+  if(!code){status(fromCamera?"QR détecté, lecture non reconnue : recherche en cours. Maintenez la carte devant la caméra.":"Code non reconnu : saisissez le code de la carte ou un lien SunuCSU officiel.");return false}
   $("new-numero").value=code;
   $("cmu-qr-manual").value=code;
   const a=$("cmu-qr-official");let officialHost="carte.sencsu.sn";try{const u=new URL(String(raw).trim());if(["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(u.hostname.toLowerCase()))officialHost=u.hostname.toLowerCase()}catch(_){}a.href="https://"+officialHost+"/?code="+encodeURIComponent(code);a.style.display="inline-block";
@@ -1781,7 +1781,7 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
    await video.play();active=true;status("Présentez le QR code devant la caméra.");
    const loop=async()=>{
     if(!active)return;
-    try{for(const item of await detector.detect(video)){if(apply(item.rawValue))return}}catch(_){}
+    try{for(const item of await detector.detect(video)){if(apply(item.rawValue,true))return}}catch(_){}
     if(active)setTimeout(loop,250);
    };loop();
   }catch(e){stop();status("Caméra inaccessible : vérifiez les autorisations ou utilisez la saisie manuelle.")}
