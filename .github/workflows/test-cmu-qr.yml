@@ -105,6 +105,17 @@ jobs:
           assert(s.includes('modification(s) locale(s) à synchroniser'),'Message explicite sur les modifications en attente absent');
           assert(s.includes('const blockedPassages=requestedPassages.length-passagesToPush.length'),'Détection des passages bloqués absente');
           assert(s.includes('passage(s) en attente : adhérent introuvable sur le serveur'),'Message sur les passages bloqués absent');
+          // Vérifier réellement le filtrage des passages sans base de données payante.
+          const passageFilter=s.match(/const passagesToPush=requestedPassages\.filter\(([^\n]+)\);/);
+          assert(passageFilter,'Filtrage des passages introuvable');
+          const runPassageFilter=(requestedPassages,ids)=>vm.runInNewContext(
+            'requestedPassages.filter('+passageFilter[1]+')',{requestedPassages,ids,String});
+          const samplePassages=[{id:'p1',adherentId:'a1'},{id:'p2',adherentId:'a2'}];
+          const accepted=runPassageFilter(samplePassages,new Map([['a1','uuid-1']]));
+          assert.strictEqual(accepted.length,1,'Un passage orphelin a été transmis');
+          assert.strictEqual(accepted[0].id,'p1','Le passage valide a été perdu');
+          assert.strictEqual(samplePassages.length-accepted.length,1,'Décompte des passages bloqués incorrect');
+
 
 
 
