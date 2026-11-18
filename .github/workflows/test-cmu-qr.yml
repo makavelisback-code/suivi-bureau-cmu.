@@ -114,7 +114,7 @@ jobs:
           const store={getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)};
           const ctx={localStorage:store,session:{user:{id:'agent-1'}},activeEstablishmentId:'centre-A',
             PENDING_A_KEY:'pending-a',PENDING_P_KEY:'pending-p',adherents:[],passages:[],JSON};
-          const change=()=>vm.runInNewContext(s.slice(scopeStart,scopeEnd),ctx);
+          const change=()=>vm.runInNewContext('(()=>{'+s.slice(scopeStart,scopeEnd)+'})()',ctx);
           change();
           store.setItem('cmu_adherents',JSON.stringify([{id:'A'}]));
           store.setItem('pending-a',JSON.stringify(['A']));
