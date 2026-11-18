@@ -190,6 +190,8 @@ jobs:
             s.slice(parserStart,parserEnd)+';parseCode':'(()=>null)',{URL});
           assert.strictEqual(parseCode('https://scancarte.sunucsu.sn/?code=AB123456'),'AB123456');
           assert.strictEqual(parseCode('https://carte.sencsu.sn/?code=ab123456'),'AB123456');
+          assert.strictEqual(parseCode('http://carte.sencsu.sn/?code=W2300Q7750'),'W2300Q7750');
+          assert.strictEqual(parseCode('http://scancarte.sunucsu.sn/?code=AB123456'),'AB123456');
           assert.strictEqual(parseCode('ab123456'),'AB123456');
 
           // Tester la véritable application du QR avec un DOM fictif.
@@ -220,6 +222,9 @@ jobs:
           assert.strictEqual(els['cmu-qr-official'].href,
             'https://scancarte.sunucsu.sn/?code=AB123456','Domaine officiel du QR non conservé');
           assert.strictEqual(stops,2,'Arrêt caméra absent après seconde lecture');
+          assert.strictEqual(apply('http://carte.sencsu.sn/?code=W2300Q7750',true),true);
+          assert.strictEqual(els['new-numero'].value,'W2300Q7750');
+          assert.strictEqual(els['cmu-qr-official'].href,'https://carte.sencsu.sn/?code=W2300Q7750','Vérification HTTP non convertie en HTTPS');
           // La saisie manuelle doit être soumise aux mêmes règles que le QR.
           assert.strictEqual(apply('z8991e3303'),true,'Immatriculation manuelle valide refusée');
           assert.strictEqual(els['new-numero'].value,'Z8991E3303','Normalisation manuelle incorrecte');
@@ -231,7 +236,8 @@ jobs:
 
 
           for(const bad of [
-            'http://carte.sencsu.sn/?code=AB123456',
+            'http://carte.sencsu.sn.evil.example/?code=AB123456',
+            'ftp://carte.sencsu.sn/?code=AB123456',
             'https://carte.sencsu.sn.evil.example/?code=AB123456',
             'https://evil.example/?code=AB123456',
             'https://carte.sencsu.sn/?code=abc%20def',
