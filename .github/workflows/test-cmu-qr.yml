@@ -105,6 +105,28 @@ jobs:
           assert.strictEqual(legacy.length,1,'Doublon créé pour un identifiant historique');
           assert.strictEqual(legacy[0].nom,'Modification locale','Identifiant historique non fusionné');
 
+
+          // Test réel du bloc de séparation avec un stockage simulé.
+          const scopeStart=s.indexOf(' const scope=session.user.id+":"+activeEstablishmentId;');
+          const scopeEnd=s.indexOf(' document.getElementById("cloud-auth")',scopeStart);
+          assert(scopeStart>=0&&scopeEnd>scopeStart,'Séparation des établissements introuvable');
+          const mem=new Map();
+          const store={getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)};
+          const ctx={localStorage:store,session:{user:{id:'agent-1'}},activeEstablishmentId:'centre-A',
+            PENDING_A_KEY:'pending-a',PENDING_P_KEY:'pending-p',adherents:[],passages:[],JSON};
+          const change=()=>vm.runInNewContext(s.slice(scopeStart,scopeEnd),ctx);
+          change();
+          store.setItem('cmu_adherents',JSON.stringify([{id:'A'}]));
+          store.setItem('pending-a',JSON.stringify(['A']));
+          ctx.activeEstablishmentId='centre-B';change();
+          assert.strictEqual(store.getItem('cmu_adherents'),null,'Données A visibles dans B');
+          assert.strictEqual(store.getItem('pending-a'),null,'Attentes A visibles dans B');
+          store.setItem('cmu_adherents',JSON.stringify([{id:'B'}]));
+          ctx.activeEstablishmentId='centre-A';change();
+          assert.strictEqual(JSON.parse(store.getItem('cmu_adherents'))[0].id,'A','Sauvegarde A perdue');
+          assert.strictEqual(JSON.parse(store.getItem('pending-a'))[0],'A','Attentes A perdues');
+          ctx.session.user.id='agent-2';change();
+          assert.strictEqual(store.getItem('cmu_adherents'),null,'Données agent 1 visibles pour agent 2');
           // Séparation locale des établissements : contrôler les clés de sauvegarde.
           assert(s.includes('const scope=session.user.id+":"+activeEstablishmentId'),'Clé de périmètre utilisateur/établissement absente');
           assert(s.includes('"cmu_backup:"+previous+":"+key'),'Sauvegarde du périmètre précédent absente');
