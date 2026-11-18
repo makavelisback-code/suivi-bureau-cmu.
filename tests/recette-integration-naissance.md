@@ -1,27 +1,26 @@
-# Recette d'intégration CMU — date de naissance (environnement autorisé)
+# Recette CMU V15.6 — validation gratuite et sans données patients
 
-## Prérequis
-- Utiliser un compte agent habilité et un établissement de test autorisé.
-- Ne jamais utiliser de données personnelles réelles dans ce test.
-- Tester uniquement sur la branche de développement; ne pas fusionner avant validation.
-- Numéro fictif unique : `TEST-CMU-QR-YYYYMMDD-001` (remplacer YYYYMMDD par la date).
+## Niveau 1 — Vérifications automatisées (sans Supabase)
+- Exécuter le workflow GitHub Actions « Vérification scanner QR CMU » sur la PR #2.
+- Vérifier les scénarios : QR officiel, QR malveillant, saisie manuelle, code assuré distinct de l'immatriculation, date de naissance, doublons, reconnexion et séparation locale des établissements.
+- Un statut vert valide uniquement ces tests simulés, pas une synchronisation réelle.
 
-## Scénario
-1. Ouvrir V15.6 de développement, se connecter à l'établissement de test.
-2. Créer un adhérent fictif : nom TESTCMU, prénoms DEMO, immatriculation TEST-CMU-QR-YYYYMMDD-001, date de naissance 2000-02-29; sélectionner les autres champs obligatoires.
-3. Vérifier que la sauvegarde ne signale aucune erreur et que la synchronisation affiche « Synchronisé ✓ ».
-4. Recharger la page; rechercher le numéro fictif, ouvrir la fiche en modification et vérifier que la date vaut 2000-02-29.
-5. Sur un second navigateur/appareil avec un compte autorisé pour le même établissement, se connecter, retrouver le dossier et vérifier les quatre champs.
-6. Modifier la date en 2001-03-01, attendre la synchronisation et vérifier sur le premier navigateur après rechargement.
-7. Tenter une date future : l'application doit refuser l'enregistrement.
-8. Supprimer le dossier fictif uniquement après confirmation de la synchronisation et vérifier sa disparition sur les deux appareils.
+## Niveau 2 — Recette manuelle sur téléphone (lecture seule)
+1. Ouvrir la page de test du formulaire : https://makavelisback-code.github.io/suivi-bureau-cmu./test-formulaire-qr-cmu.html
+2. Vérifier les champs **Nom**, **Prénoms**, **Numéro d'immatriculation** et **Date de naissance**. Le code assuré ne doit pas se substituer à l'immatriculation.
+3. Tester avec une chaîne fictive `Z8991E3303` (exemple technique, **ne pas présumer qu'elle appartient à un patient réel**) et le lien fictif `https://carte.sencsu.sn/?code=TEST1234`. Ne pas rechercher de personne réelle sur le portail officiel.
+4. Vérifier qu'un QR ou lien non autorisé est refusé, que la saisie manuelle est possible et que le lien de vérification utilise seulement un domaine officiel.
+5. Tester une date bissextile valide (2000-02-29), une date impossible (2001-02-29) et une date future.
+6. **Ne pas se connecter à Supabase ni enregistrer de dossier** pendant cette recette de démonstration.
 
-## Critères de réussite
-- Les quatre champs restent identiques après création, synchronisation et relecture.
-- Aucune erreur Supabase; aucun doublon.
-- Une date inconnue reste vide; une date future est rejetée.
-- Aucune donnée d'un autre établissement n'est visible.
-- Le test n'a pas modifié de dossier réel.
+## Niveau 3 — Synchronisation réelle (non autorisée pour le moment)
+- À réaliser ultérieurement **uniquement** avec un compte agent et un établissement de test explicitement autorisés, sans données réelles, et après vérification de l'isolation.
+- Créer un dossier fictif, vérifier sur deux appareils, modifier puis supprimer le dossier de test.
+- Ne jamais lancer ce scénario dans la table de production des patients.
+- Aucun environnement Supabase payant ne doit être créé sans nouvel accord.
 
-## Précaution
-La migration `birth_date` est appliquée en base, mais les tests GitHub sont statiques et simulés. Cette recette est nécessaire avant fusion de la branche et déploiement public.
+## Critères avant déploiement
+- Tests automatisés verts.
+- Recette sur téléphone validée.
+- Synchronisation réelle et droits d'accès validés dans un environnement autorisé.
+- Validation explicite de l'utilisateur avant fusion et déploiement.
