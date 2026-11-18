@@ -97,6 +97,9 @@ jobs:
           assert(s.includes('.eq("establishment_id",activeEstablishmentId)'),'Filtrage Supabase par établissement absent');
           assert(s.includes('const requestedEstablishmentId=activeEstablishmentId'),'Capture du centre avant réception absente');
           assert(s.includes('if(activeEstablishmentId!==requestedEstablishmentId)return'),'Protection contre réception tardive d’un autre centre absente');
+          assert(s.includes('const pushEstablishmentId=activeEstablishmentId'),'Périmètre envoi non figé');
+          assert(s.includes('establishment_id:pushEstablishmentId'),'Envoi non lié au centre initial');
+          assert(s.includes('localStorage.getItem("cmu_tenant_scope")!==pushScope'),'Protection changement de compte absente');
 
 
 
