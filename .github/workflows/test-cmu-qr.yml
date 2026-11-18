@@ -52,6 +52,24 @@ jobs:
           assert.strictEqual(invalid('2026-02-30'),true,'Date inexistante acceptée');
           assert.strictEqual(invalid('2099-01-01'),true,'Date future acceptée');
           assert.strictEqual(invalid('2000/02/29'),true,'Format invalide accepté');
+
+          // Contrôler les quatre champs d'identification et la prévention des doublons.
+          const identityFields=['new-nom','new-prenom','new-numero','new-birth'];
+          for(const id of identityFields)assert(new RegExp('id="'+id+'"').test(s),'Champ identité absent : '+id);
+          const duplicateStart=s.indexOf('const sameNumero=adherents.find(');
+          const duplicateEnd=s.indexOf(';',duplicateStart);
+          assert(duplicateStart>=0&&duplicateEnd>duplicateStart,'Contrôle des doublons absent');
+          const duplicateCode=s.slice(duplicateStart,duplicateEnd+1);
+          const duplicate=(adherents,enteredNumero,editingAdherentId)=>{
+            const ctx={adherents,enteredNumero,editingAdherentId,
+              normNumero:x=>String(x||'').replace(/[^a-z0-9]/gi,'').toUpperCase()};
+            return vm.runInNewContext(duplicateCode+';Boolean(sameNumero)',ctx);
+          };
+          const patients=[{id:'a1',numero:'AB-123456'},{id:'a2',numero:'CD987654'}];
+          assert.strictEqual(duplicate(patients,'ab 123456',null),true,'Doublon non détecté');
+          assert.strictEqual(duplicate(patients,'AB123456','a1'),false,'Modification du même dossier bloquée');
+          assert.strictEqual(duplicate(patients,'ZZ999999',null),false,'Nouvelle immatriculation refusée');
+          assert(s.includes('N° d’immatriculation requis pour identifier le patient'),'Numéro obligatoire non contrôlé');
           // Exécuter la logique réelle d'acquittement des modifications en cours de synchronisation.
           const start=s.indexOf('  const latest=localSnapshot(),latestA=');
           const end=s.indexOf('  cloudState(blockedPassages?',start);
