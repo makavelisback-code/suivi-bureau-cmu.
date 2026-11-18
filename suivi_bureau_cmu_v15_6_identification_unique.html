@@ -1749,7 +1749,7 @@ cloud.auth.getSession().then(({data})=>{if(data.session&&!cmuPasswordSetupPendin
   if(/^[A-Z0-9]{6,24}$/i.test(value))return value.toUpperCase();
   try{
    const url=new URL(value);
-   if(url.protocol!=="https:"||!["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(url.hostname.toLowerCase()))return null;
+   if(!["http:","https:"].includes(url.protocol)||!["carte.sencsu.sn","scancarte.sunucsu.sn"].includes(url.hostname.toLowerCase())||url.username||url.password||url.port)return null;
    const code=url.searchParams.get("code")||"";
    return /^[A-Z0-9]{6,24}$/i.test(code)?code.toUpperCase():null;
   }catch(_){return null}
