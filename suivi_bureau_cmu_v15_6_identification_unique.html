@@ -1675,6 +1675,9 @@ async function cloudStart(session){
  const count=countRes.count;const s=localSnapshot();await cloudPull();
  if(!cloudSubscribed){cloudSubscribed=true;cloud.channel("cmu-live").on("postgres_changes",{event:"*",schema:"public",table:"adherents"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).on("postgres_changes",{event:"*",schema:"public",table:"passages"},()=>{cloudPullQueued=true;setTimeout(()=>{if(!cloudBusy){cloudPullQueued=false;cloudPull()}},450)}).subscribe()}
 }
+// Reprendre automatiquement les écritures locales après une coupure réseau.
+window.addEventListener("online",()=>{if(activeEstablishmentId&&(pendingSet(PENDING_A_KEY).size||pendingSet(PENDING_P_KEY).size))setTimeout(()=>cloudPush(),250)});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&activeEstablishmentId&&navigator.onLine&&(pendingSet(PENDING_A_KEY).size||pendingSet(PENDING_P_KEY).size))setTimeout(()=>cloudPush(),250)});
 const localSave=save; save=function(){const before=localSnapshot();const ok=localSave();if(ok===false)return false;const after=localSnapshot();markPendingDiff(before,after);setTimeout(cloudPush,100);return true};
 const localDeleteAdherent=deleteAdherent;
 deleteAdherent=async function(id){
