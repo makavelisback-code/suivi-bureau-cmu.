@@ -25,6 +25,10 @@ jobs:
           assert(s.includes('id="cmu-qr-official"'),'Lien vérification absent');
           assert(s.includes('id="dlg-add-adherent"'),'Formulaire adhérent absent');
           assert(s.includes('id="new-prenom"')&&s.includes('id="new-nom"'),'Champs identité absents');
+          assert(s.includes('id="new-birth"'),'Champ date de naissance absent');
+          assert(s.includes('birth_date:x.birthDate||null'),'Envoi date de naissance vers Supabase absent');
+          assert(s.includes('birthDate:x.birth_date||""'),'Relecture date de naissance depuis Supabase absente');
+          assert(s.includes('birthDate:f("new-birth")'),'Enregistrement local de la date de naissance absent');
           assert(s.includes('id="btn-confirm-add-adherent"'),'Bouton sauvegarde absent');
           assert(s.includes('["carte.sencsu.sn","scancarte.sunucsu.sn"]'),'Domaines QR officiels absents');
           assert(s.includes('url.searchParams.get("code")'),'Extraction du paramètre code absente');
